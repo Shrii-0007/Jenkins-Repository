@@ -1,0 +1,122 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  branches:
+    include:
+      - master
+
+variables:
+  vmName: 'Timesheetdemo'
+  vmUsername: 'Shrikant'
+  vmPassword: 'Shrikant123@'
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  project: '**/RoundTheCode.AzureTestProject.csproj'
+  workingDirectory: '$(System.DefaultWorkingDirectory)/'
+  IISWebsiteName: 'AzureTestProject'
+
+resources:
+ pipelines:
+   - pipeline: 'buildpipeline'
+     source: 'Build pipeline'
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildJob
+        displayName: 'Build Job'
+        pool:
+          name: 'Default'
+        
+        steps:
+          - task: NuGetToolInstaller@1
+            name: 'NuGetToolInstaller'
+            displayName: 'NuGet tool installer'
+
+          - task: NuGetCommand@2
+            name: 'NuGetRestore'
+            displayName: 'NuGet Restore Packages'
+            inputs:
+              command: 'restore'
+              projects: '**/*.csproj'
+              feedsToUse: 'select'
+
+          - task: UseDotNet@2
+            displayName: 'Use .NET'
+            inputs: 
+              packageType: 'sdk'
+              version: '6.x'
+              vsVersion: '17.0.x'
+
+          - task: MSBuild@1
+            name: 'RunBuild'
+            displayName: 'Build solution **/*.sln'
+            inputs:
+              solution: '$(solution)'
+              msbuildVersion: '17.0'
+              platform: '$(buildPlatform)'
+              configuration: '$(buildConfiguration)'
+              msbuildArguments: '/t:restore /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
+  
+          - task: CopyFiles@2
+            name: 'Copyfiles'
+            displayName: 'symbols path'
+            inputs:
+              SourceFolder: '$(Build.SourcesDirectory)'
+              Contents: '**'
+              TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+          - task: PublishSymbols@2
+            name: 'Publish'
+            displayName: 'Publish symbols path'
+            inputs:
+              SearchPattern: '**\bin\**\*.pdb'
+              PublishSymbols: false
+              continueOnError: true
+
+          - task: PublishBuildArtifacts@1
+            name: 'PublishBuildArtifacts'
+            displayName: 'Publish build artifacts'
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'AzureTestProject'
+              publishLocation: 'Container'
+
+  - stage: Deploywebsite
+    displayName: 'Deploy Website'
+    pool:
+      name: 'Default' 
+    
+    jobs:
+      - deployment: Deploywebsite
+        displayName: 'Deploy Website'
+        environment: 'Deployment_Environment.Timesheetdemo'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: 'none'
+
+                - download: 'buildpipeline'
+                  name: 'DownloadBuildArtifacts'
+                  displayName: 'Download Build Artifact'
+                  artifact: 'AzureTestProject'
+                
+                - task: IISWebAppManagementOnMachineGroup@0
+                  inputs:
+                    IISDeploymentType: 'IISWebsite'
+                    ActionIISWebsite: 'CreateOrUpdateWebsite'
+                    WebsiteName: '${{variables.IISWebsiteName}}'
+                    WebsitePhysicalPath: '%SystemDrive%\inetpub\wwwroot'
+                    WebsitePhysicalPathAuth: 'WebsiteUserPassThrough'
+                
+                - task: IISWebAppDeploymentOnMachineGroup@0
+                  name: 'DeployIIS'
+                  displayName: 'Deploy IIS'
+                  inputs:
+                    WebSiteName: '${{variables.IISWebsiteName}}'
+                    Package: '$(Pipeline.Workspace)\buildPipeline\AzureTestProject'
+                    TakeAppOfflineFlag: true
