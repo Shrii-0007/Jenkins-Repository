@@ -78,3 +78,40 @@ jobs:
       PathtoPublish: '$(Build.ArtifactStagingDirectory)'
       ArtifactName: 'AzureTestProject'
       publishLocation: 'Container'
+
+
+  - stage: Deploywebsite
+    displayName: 'Deploy Website'
+    pool:
+      name: 'Default' 
+    
+    jobs:
+      - deployment: Deploywebsite
+        displayName: 'Deploy Website'
+        environment: 'Deployment_Environment.Timesheetdemo'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: 'none'
+
+                - download: 'buildpipeline'
+                  name: 'DownloadBuildArtifacts'
+                  displayName: 'Download Build Artifact'
+                  artifact: 'AzureTestProject'
+                
+                - task: IISWebAppManagementOnMachineGroup@0
+                  inputs:
+                    IISDeploymentType: 'IISWebsite'
+                    ActionIISWebsite: 'CreateOrUpdateWebsite'
+                    WebsiteName: '${{variables.IISWebsiteName}}'
+                    WebsitePhysicalPath: '%SystemDrive%\inetpub\wwwroot'
+                    WebsitePhysicalPathAuth: 'WebsiteUserPassThrough'
+                
+                - task: IISWebAppDeploymentOnMachineGroup@0
+                  name: 'DeployIIS'
+                  displayName: 'Deploy IIS'
+                  inputs:
+                    WebSiteName: '${{variables.IISWebsiteName}}'
+                    Package: '$(Pipeline.Workspace)\buildPipeline\AzureTestProject'
+                    TakeAppOfflineFlag: true
