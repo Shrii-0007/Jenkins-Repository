@@ -64,7 +64,7 @@ stages:
     jobs:
       - deployment: Deploywebsite
         displayName: 'Deploy Website'
-        environment: 'Deployment_Environment.ShriiDigitalSignature'
+        environment: 'Deployment_Environment.ShriiDigitalSig'
         pool:
           vmImage: 'windows-latest'  # Specify a VM image suitable for deploying to IIS
 
