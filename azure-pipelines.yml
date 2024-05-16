@@ -6,10 +6,7 @@
 trigger:
   branches:
     include:
-      - master
-
-pool:
-  name: 'Default'
+      - main
 
 variables:
   vmName: 'ShriiDigitalSignature'
@@ -20,98 +17,83 @@ variables:
   buildConfiguration: 'Release'
   project: '**/RoundTheCode.AzureTestProject.csproj'
   workingDirectory: '$(System.DefaultWorkingDirectory)/'
+  IISWebsiteName: 'AzureTestProject'
 
-jobs:
-- job: Build
-  displayName: 'Build Job'
-  
-  steps:
-  - task: NuGetToolInstaller@1
-    name: 'NuGetToolInstaller'
-    displayName: 'NuGet tool installer'
+resources:
+  pipelines:
+    - pipeline: 'buildpipeline'
+      source: 'Build pipeline'
 
-  - task: NuGetCommand@2
-    name: 'NuGetRestore'
-    displayName: 'NuGet Restore Packages'
-    inputs:
-      command: 'restore'
-      projects: '**/*.csproj'
-      feedsToUse: 'select'
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildJob
+        displayName: 'Build Job'
+        pool:
+          vmImage: 'windows-latest'  # Specify a VM image suitable for building .NET applications
+        
+        steps:
+          - task: UseDotNet@2
+            displayName: 'Use .NET'
+            inputs: 
+              packageType: 'sdk'
+              version: '6.x'
+              installationPath: $(Agent.ToolsDirectory)/dotnet  # Specify installation path for .NET SDK
 
-  - task: UseDotNet@2
-    displayName: 'Use .NET'
-    inputs: 
-      packageType: 'sdk'
-      version: '6.x'
-      vsVersion: '17.0.x'
+          - task: NuGetToolInstaller@1
+            displayName: 'NuGet tool installer'
 
-  - task: MSBuild@1
-    name: 'RunBuild'
-    displayName: 'Build solution **/*.sln'
-    inputs:
-      solution: '$(solution)'
-      msbuildVersion: '17.0'
-      platform: '$(buildPlatform)'
-      configuration: '$(buildConfiguration)'
-      msbuildArguments: '/t:restore /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
-  
-  - task: CopyFiles@2
-    name: 'Copyfiles'
-    displayName: 'Copy files to artifacts staging directory'
-    inputs:
-      SourceFolder: '$(Build.SourcesDirectory)'
-      Contents: '**'
-      TargetFolder: '$(Build.ArtifactStagingDirectory)'
+          - task: NuGetCommand@2
+            displayName: 'NuGet Restore Packages'
+            inputs:
+              command: 'restore'
+              restoreSolution: '$(solution)'
+              feedsToUse: 'select'
 
-  - task: PublishSymbols@2
-    name: 'Publish'
-    displayName: 'Publish symbols path'
-    inputs:
-      SearchPattern: '**\bin\**\*.pdb'
-      PublishSymbols: false
-    continueOnError: true
+          - task: MSBuild@1
+            displayName: 'Build solution'
+            inputs:
+              solution: '$(solution)'
+              msbuildArguments: '/t:restore /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
 
-  - task: PublishBuildArtifacts@1
-    name: 'PublishBuildArtifacts'
-    displayName: 'Publish build artifacts'
-    inputs:
-      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      ArtifactName: 'AzureTestProject'
-      publishLocation: 'Container'
-
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish build artifacts'
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'drop'
+              publishLocation: 'Container'
 
   - stage: Deploywebsite
     displayName: 'Deploy Website'
-    pool:
-      name: 'Default' 
-    
     jobs:
       - deployment: Deploywebsite
         displayName: 'Deploy Website'
         environment: 'Deployment_Environment.Digitalsignaturedemo'
+        pool:
+          vmImage: 'windows-latest'  # Specify a VM image suitable for deploying to IIS
+
         strategy:
           runOnce:
             deploy:
               steps:
-                - checkout: 'none'
+                - checkout: none
 
                 - download: 'buildpipeline'
-                  name: 'DownloadBuildArtifacts'
                   displayName: 'Download Build Artifact'
-                  artifact: 'AzureTestProject'
-                
+                  artifact: 'drop'
+
                 - task: IISWebAppManagementOnMachineGroup@0
+                  displayName: 'Create or Update Website'
                   inputs:
                     IISDeploymentType: 'IISWebsite'
                     ActionIISWebsite: 'CreateOrUpdateWebsite'
-                    WebsiteName: '${{variables.IISWebsiteName}}'
+                    WebsiteName: '$(IISWebsiteName)'
                     WebsitePhysicalPath: '%SystemDrive%\inetpub\wwwroot'
                     WebsitePhysicalPathAuth: 'WebsiteUserPassThrough'
-                
+
                 - task: IISWebAppDeploymentOnMachineGroup@0
-                  name: 'DeployIIS'
-                  displayName: 'Deploy IIS'
+                  displayName: 'Deploy to IIS'
                   inputs:
-                    WebSiteName: '${{variables.IISWebsiteName}}'
-                    Package: '$(Pipeline.Workspace)\buildPipeline\AzureTestProject'
+                    WebSiteName: '$(IISWebsiteName)'
+                    Package: '$(Pipeline.Workspace)/drop'
                     TakeAppOfflineFlag: true
