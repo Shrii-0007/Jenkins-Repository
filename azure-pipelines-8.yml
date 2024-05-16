@@ -1,0 +1,99 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  branches:
+    include:
+      - master
+
+variables:
+  vmName: 'ShriiDigitalSignature'
+  vmUsername: 'Shrikant'
+  vmPassword: 'Shrikant123@'
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  project: '**/RoundTheCode.AzureTestProject.csproj'
+  workingDirectory: '$(System.DefaultWorkingDirectory)/'
+  IISWebsiteName: 'AzureTestProject'
+
+resources:
+  pipelines:
+    - pipeline: buildpipeline
+      source: 'Build pipeline'
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildJob
+        displayName: 'Build Job'
+        pool:
+          vmImage: 'windows-default'  # Specify a VM image suitable for building .NET applications
+        
+        steps:
+          - task: UseDotNet@2
+            displayName: 'Use .NET'
+            inputs: 
+              packageType: 'sdk'
+              version: '6.x'
+              installationPath: $(Agent.ToolsDirectory)/dotnet  # Specify installation path for .NET SDK
+
+          - task: NuGetToolInstaller@1
+            displayName: 'NuGet tool installer'
+
+          - task: NuGetCommand@2
+            displayName: 'NuGet Restore Packages'
+            inputs:
+              command: 'restore'
+              restoreSolution: '$(solution)'
+              feedsToUse: 'select'
+
+          - task: MSBuild@1
+            displayName: 'Build solution'
+            inputs:
+              solution: '$(solution)'
+              msbuildArguments: '/t:restore /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish build artifacts'
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'drop'
+              publishLocation: 'Container'
+
+  - stage: Deploywebsite
+    displayName: 'Deploy Website'
+    jobs:
+      - deployment: Deploywebsite
+        displayName: 'Deploy Website'
+        environment: 'Deployment_Environment.ShriiDigitalSig'
+        pool:
+          vmImage: 'windows-default'  # Specify a VM image suitable for deploying to IIS
+
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: none
+
+                - download: 'buildpipeline'
+                  displayName: 'Download Build Artifact'
+                  artifact: 'drop'
+
+                - task: IISWebAppManagementOnMachineGroup@0
+                  displayName: 'Create or Update Website'
+                  inputs:
+                    IISDeploymentType: 'IISWebsite'
+                    ActionIISWebsite: 'CreateOrUpdateWebsite'
+                    WebsiteName: '$(IISWebsiteName)'
+                    WebsitePhysicalPath: '%SystemDrive%\inetpub\wwwroot'
+                    WebsitePhysicalPathAuth: 'WebsiteUserPassThrough'
+
+                - task: IISWebAppDeploymentOnMachineGroup@0
+                  displayName: 'Deploy to IIS'
+                  inputs:
+                    WebSiteName: '$(IISWebsiteName)'
+                    Package: '$(Pipeline.Workspace)/drop'
+                    TakeAppOfflineFlag: true
