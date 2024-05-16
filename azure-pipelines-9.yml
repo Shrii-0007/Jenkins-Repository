@@ -82,13 +82,15 @@ stages:
               ArtifactName: 'AzureTestProject'
               publishLocation: 'Container'
 
+
+
   - stage: Deploywebsite
     displayName: 'Deploy Website'
     pool:
       name: 'Default' 
     
     jobs:
-      - deployment: Deploywebsite
+      - deployment: 'Deploywebsitejob'
         displayName: 'Deploy Website'
         environment: 'Deployment_Environment.ShriiDigitalSig'
         strategy:
