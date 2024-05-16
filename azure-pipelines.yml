@@ -6,7 +6,7 @@
 trigger:
   branches:
     include:
-      - main
+      - master
 
 variables:
   vmName: 'ShriiDigitalSignature'
@@ -21,7 +21,7 @@ variables:
 
 resources:
   pipelines:
-    - pipeline: 'buildpipeline'
+    - pipeline: buildpipeline
       source: 'Build pipeline'
 
 stages:
