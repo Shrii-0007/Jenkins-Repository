@@ -19,10 +19,6 @@ variables:
   workingDirectory: '$(System.DefaultWorkingDirectory)/'
   IISWebsiteName: 'AzureTestProject'
 
-resources:
-  pipelines:
-    - pipeline: buildpipeline
-      source: 'Build pipeline'
 
 stages:
   - stage: Build
