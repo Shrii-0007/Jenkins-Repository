@@ -6,7 +6,7 @@
 trigger:
   branches:
     include:
-      - master
+      - main
 
 variables:
   vmName: 'ShriiDigitalSignature'
@@ -25,8 +25,7 @@ stages:
     jobs:
       - job: BuildJob
         displayName: 'Build Job'
-        pool:
-          vmImage: 'windows-default'  # Specify a VM image suitable for building .NET applications
+        pool: 'default'  # Specify a VM image suitable for building .NET applications
         
         steps:
           - task: UseDotNet@2
@@ -65,8 +64,7 @@ stages:
       - deployment: Deploywebsite
         displayName: 'Deploy Website'
         environment: 'Deployment_Environment.ShriiDigitalSig'
-        pool:
-          vmImage: 'windows-default'  # Specify a VM image suitable for deploying to IIS
+        pool: 'default'  # Specify a VM image suitable for deploying to IIS
 
         strategy:
           runOnce:
