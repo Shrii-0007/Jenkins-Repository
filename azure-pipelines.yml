@@ -7,6 +7,7 @@ variables:
   vmName: 'vm-digital-signature'
   vmUsername: 'Shrikant'
   vmPassword: 'Shrikant123@'
+  environment: EmailNotification
   solution: '**/*.sln'
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
