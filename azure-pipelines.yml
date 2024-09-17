@@ -17,6 +17,19 @@ variables:
 
 
 stages:
+
+ # Pre-Build Stage
+  - stage: PreBuild
+    displayName: 'Pre-Build Stage'
+    jobs:
+      - job: PreBuildJob
+        displayName: 'Pre-Build Job'
+        pool:
+          name: 'Default'
+        steps:
+          - script: echo "Running pre-build checks..."
+            displayName: 'Pre-Build Checks'
+
   - stage: Build
     jobs:
       - job: BuildJob
