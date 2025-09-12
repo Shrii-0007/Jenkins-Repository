@@ -64,10 +64,11 @@ pipeline {
         stage('Environment Variables Report') {
             steps {
                 script {
-                    def envReport = new File("env_report.txt")
+                    def envText = ""
                     env.each { key, value ->
-                        envReport << "${key} = ${value}\n"
+                        envText += "${key} = ${value}\n"
                     }
+                    writeFile file: 'env_report.txt', text: envText
                 }
             }
         }
