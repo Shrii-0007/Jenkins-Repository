@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        ENV_NAME = "Development"
-    }
-
     stages {
         stage('Checkout') {
             steps {
@@ -33,63 +29,4 @@ pipeline {
                 sh '''
                 echo "===== Dependency Change Report =====" > report.txt
                 echo "Branch: ${BRANCH_NAME}" >> report.txt
-                echo "Commit Info:" >> report.txt
-                git log -1 --pretty=format:"%h - %an : %s" >> report.txt
-                echo "" >> report.txt
-
-                if [ -f package.json ]; then
-                    echo "--- package.json changes ---" >> report.txt
-                    git diff HEAD~1 HEAD -- package.json >> report.txt || echo "First commit"
-                fi
-
-                if [ -f requirements.txt ]; then
-                    echo "--- requirements.txt changes ---" >> report.txt
-                    git diff HEAD~1 HEAD -- requirements.txt >> report.txt || echo "First commit"
-                fi
-
-                if ls *.csproj 1> /dev/null 2>&1; then
-                    echo "--- .csproj changes ---" >> report.txt
-                    git diff HEAD~1 HEAD -- *.csproj >> report.txt || echo "First commit"
-                fi
-
-                if [ -f pom.xml ]; then
-                    echo "--- pom.xml changes ---" >> report.txt
-                    git diff HEAD~1 HEAD -- pom.xml >> report.txt || echo "First commit"
-                fi
-
-                if [ -f build.gradle ]; then
-                    echo "--- build.gradle changes ---" >> report.txt
-                    git diff HEAD~1 HEAD -- build.gradle >> report.txt || echo "First commit"
-                fi
-                '''
-            }
-        }
-
-        stage('Environment Variables Report') {
-            steps {
-                script {
-                    // Build the content
-                    def envText = ""
-                    env.each { key, value ->
-                        envText += "${key} = ${value}\n"
-                    }
-
-                    // Archive the file
-                    writeFile file: 'env_report.txt', text: envText
-
-                    // Print to Jenkins console
-                    echo "===== ALL ENVIRONMENT VARIABLES ====="
-                    env.each { key, value ->
-                        echo "${key} = ${value}"
-                    }
-                }
-            }
-        }
-
-        stage('Publish Reports') {
-            steps {
-                archiveArtifacts artifacts: 'report.txt, env_report.txt', fingerprint: true
-            }
-        }
-    }
-}
+                echo "Commit Info:" >> re
