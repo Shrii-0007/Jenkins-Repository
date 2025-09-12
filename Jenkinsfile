@@ -12,15 +12,15 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo "Running build for PRODUCTION branch"
-                sh 'echo "Build commands for Production branch"'
+                echo "Running build for DEVELOPMENT branch"
+                sh 'echo "Build commands for DEVELOPMENT branch"'
             }
         }
 
-        stage('Deploy to Production') {
+        stage('Unit Tests') {
             steps {
-                echo "Deploying to Production environment..."
-                sh 'echo "Production deployment commands"'
+                echo "Running unit tests for DEVELOPMENT branch"
+                sh 'echo "Unit test commands for DEVELOPMENT branch"'
             }
         }
 
@@ -61,9 +61,20 @@ pipeline {
             }
         }
 
-        stage('Publish Report') {
+        stage('Environment Variables Report') {
             steps {
-                archiveArtifacts artifacts: 'report.txt', fingerprint: true
+                script {
+                    def envReport = new File("env_report.txt")
+                    env.each { key, value ->
+                        envReport << "${key} = ${value}\n"
+                    }
+                }
+            }
+        }
+
+        stage('Publish Reports') {
+            steps {
+                archiveArtifacts artifacts: 'report.txt, env_report.txt', fingerprint: true
             }
         }
     }
