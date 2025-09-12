@@ -3,12 +3,15 @@ pipeline {
 
     environment {
         ENV_NAME = "Development"
+        BRANCH_NAME = "Development"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'Development',
+                    url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                    credentialsId: 'Github-Credential'
             }
         }
 
@@ -31,15 +34,32 @@ pipeline {
                 sh '''
                 set +e
                 echo "===== Dependency Change Report =====" > report.txt
-                echo "Branch: ${env.BRANCH_NAME}" >> report.txt
+                echo "Branch: ${BRANCH_NAME}" >> report.txt
                 git log -1 --pretty=format:"%h - %an : %s" >> report.txt
                 echo "" >> report.txt
 
-                if [ -f package.json ]; then echo "--- package.json changes ---" >> report.txt; git diff HEAD~1 HEAD -- package.json >> report.txt || echo "First commit"; fi
-                if [ -f requirements.txt ]; then echo "--- requirements.txt changes ---" >> report.txt; git diff HEAD~1 HEAD -- requirements.txt >> report.txt || echo "First commit"; fi
-                if ls *.csproj 1> /dev/null 2>&1; then echo "--- .csproj changes ---" >> report.txt; git diff HEAD~1 HEAD -- *.csproj >> report.txt || echo "First commit"; fi
-                if [ -f pom.xml ]; then echo "--- pom.xml changes ---" >> report.txt; git diff HEAD~1 HEAD -- pom.xml >> report.txt || echo "First commit"; fi
-                if [ -f build.gradle ]; then echo "--- build.gradle changes ---" >> report.txt; git diff HEAD~1 HEAD -- build.gradle >> report.txt || echo "First commit"; fi
+                commit_count=$(git rev-list --count HEAD 2>/dev/null | wc -l)
+                if [ "$commit_count" -lt 2 ]; then
+                    echo "Not enough commits to compare (first commit on branch)." >> report.txt
+                    exit 0
+                fi
+
+                for file in package.json requirements.txt pom.xml build.gradle; do
+                    if [ -f "$file" ]; then
+                        echo "--- $file changes ---" >> report.txt
+                        git diff HEAD~1 HEAD -- "$file" >> report.txt
+                    else
+                        echo "$file not found" >> report.txt
+                    fi
+                done
+
+                csproj_files=$(ls *.csproj 2>/dev/null | wc -l)
+                if [ "$csproj_files" -gt 0 ]; then
+                    echo "--- .csproj changes ---" >> report.txt
+                    git diff HEAD~1 HEAD -- *.csproj >> report.txt
+                else
+                    echo ".csproj file not found" >> report.txt
+                fi
                 '''
             }
         }
