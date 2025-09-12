@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         ENV_NAME = "Development"
+        BRANCH_NAME = "Development"
     }
 
     stages {
@@ -31,9 +32,11 @@ pipeline {
         stage('Dependency Change Report') {
             steps {
                 sh '''
+                set +e
                 echo "===== Dependency Change Report =====" > report.txt
                 echo "Branch: ${BRANCH_NAME}" >> report.txt
                 git log -1 --pretty=format:"%h - %an : %s" >> report.txt
                 echo "" >> report.txt
 
-                if [ -f]()
+                if [ -f package.json ]; then echo "--- package.json changes ---" >> report.txt; git diff HEAD~1 HEAD -- package.json >> report.txt || echo "First commit"; fi
+                if [ -f
