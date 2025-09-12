@@ -32,7 +32,10 @@ pipeline {
         stage('Generate Dashboard Report') {
             steps {
                 script {
-                    // Collect commit info
+                    // Get version (prefer tag, else commit hash)
+                    def version = sh(script: "git describe --tags --always", returnStdout: true).trim()
+
+                    // Get commit info
                     def commitInfo = sh(script: "git log -1 --pretty=format:'%h - %an : %s'", returnStdout: true).trim()
 
                     // Collect dependency changes
@@ -61,6 +64,11 @@ pipeline {
                         </head>
                         <body>
                           <h1>Branch: ${BRANCH_NAME} (${ENV_NAME})</h1>
+
+                          <div class="section">
+                            <h2>Version</h2>
+                            <pre>${version}</pre>
+                          </div>
 
                           <div class="section">
                             <h2>Commit Info</h2>
