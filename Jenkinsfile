@@ -6,7 +6,7 @@ pipeline {
             steps {
                 git branch: 'Production',
                     url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
-                    credentialsId: 'github-credentials'
+                    credentialsId: 'Github-Credential'
             }
         }
 
