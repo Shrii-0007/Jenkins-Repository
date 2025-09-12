@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        ENV_NAME = "Development"
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -64,11 +68,20 @@ pipeline {
         stage('Environment Variables Report') {
             steps {
                 script {
+                    // Build the content
                     def envText = ""
                     env.each { key, value ->
                         envText += "${key} = ${value}\n"
                     }
+
+                    // Archive the file
                     writeFile file: 'env_report.txt', text: envText
+
+                    // Print to Jenkins console
+                    echo "===== ALL ENVIRONMENT VARIABLES ====="
+                    env.each { key, value ->
+                        echo "${key} = ${value}"
+                    }
                 }
             }
         }
