@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        // Optional global env vars
-        // Jenkinsfile will override based on branch
-    }
-
     stages {
         stage('Checkout') {
             steps {
