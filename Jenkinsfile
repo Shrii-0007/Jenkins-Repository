@@ -1,36 +1,48 @@
 pipeline {
     agent any
 
+    environment {
+        // Default values (optional, can be overridden by branch-specific config)
+        APP_NAME = 'UnknownApp'
+        VERSION = '0.0-Unknown'
+        ENVIRONMENT = 'Unknown'
+        EXTRA_VAR = 'N/A'
+    }
+
     stages {
         stage('Checkout SCM') {
             steps {
-                checkout scm
+                script {
+                    echo "🌿 Checking out branch: ${env.BRANCH_NAME}"
+                    checkout([$class: 'GitSCM',
+                        branches: [[name: "${env.BRANCH_NAME}"]],
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [],
+                        userRemoteConfigs: [[
+                            credentialsId: 'Github-Credential',
+                            url: 'https://github.com/Shrii-0007/Jenkins-Repository.git'
+                        ]]
+                    ])
+                }
             }
         }
 
-        stage('Read Branch Config') {
+        stage('Load Branch Config') {
             steps {
                 script {
-                    // Current branch
-                    def branch = env.BRANCH_NAME
-                    echo "🌿 Current branch: ${branch}"
-
-                    // Branch-specific config file
                     def configFile = "appsettings.json" // प्रत्येक branch मध्ये same file आहे
+
                     if (!fileExists(configFile)) {
-                        error "❌ Config file not found: ${configFile}"
+                        error "❌ Config file not found: ${configFile} in branch ${env.BRANCH_NAME}"
                     }
 
-                    // Read JSON
                     def config = readJSON file: configFile
 
-                    // Store values in environment variables for Blue Ocean
                     env.APP_NAME = config.AppSettings.AppName
                     env.VERSION = config.AppSettings.Version
                     env.ENVIRONMENT = config.AppSettings.Environment
                     env.EXTRA_VAR = config.AppSettings.ExtraVar
 
-                    // Print for logs / Blue Ocean
                     echo "📝 AppName: ${env.APP_NAME}"
                     echo "📝 Version: ${env.VERSION}"
                     echo "📝 Environment: ${env.ENVIRONMENT}"
@@ -42,8 +54,8 @@ pipeline {
         stage('Build & Deploy') {
             steps {
                 script {
-                    echo "🚀 Build & Deploy logic goes here for branch: ${env.BRANCH_NAME}"
-                    // Your build/deploy commands
+                    echo "🚀 Running Build & Deploy for branch: ${env.BRANCH_NAME}"
+                    // इथे तुमचे real build/deploy commands ठेवा
                 }
             }
         }
@@ -51,10 +63,14 @@ pipeline {
 
     post {
         success {
-            echo "✅ Build Succeeded for branch: ${env.BRANCH_NAME} | Version: ${env.VERSION} | Environment: ${env.ENVIRONMENT}"
+            echo "✅ Build Succeeded | Branch: ${env.BRANCH_NAME} | Version: ${env.VERSION} | Environment: ${env.ENVIRONMENT}"
         }
         failure {
-            echo "❌ Build Failed for branch: ${env.BRANCH_NAME}"
+            echo "❌ Build Failed | Branch: ${env.BRANCH_NAME} | Version: ${env.VERSION} | Environment: ${env.ENVIRONMENT}"
+        }
+        always {
+            // Blue Ocean dashboard मध्ये display साठी
+            echo "📊 Branch: ${env.BRANCH_NAME}, App: ${env.APP_NAME}, Version: ${env.VERSION}, Env: ${env.ENVIRONMENT}"
         }
     }
 }
