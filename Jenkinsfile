@@ -3,31 +3,29 @@ pipeline {
     options { timestamps() }
 
     stages {
-        stage('Process Environment Branches') {
+        stage('Process All Environment Branches') {
             steps {
                 script {
-                    def branches = ['Development','QA','UAT','Production']
+                    // Define environment branches
+                    def branches = ['Development', 'QA', 'UAT', 'Production']
 
                     branches.each { branch ->
-                        // Quietly fetch & checkout branch
-                        sh """
-                        git fetch origin ${branch}:${branch} --quiet
-                        git checkout ${branch} --quiet
-                        """
-
-                        // Read JSON silently
+                        // Compose JSON file name per branch
                         def configFile = "appsettings.${branch}.json"
-                        if (new File(configFile).exists()) {
-                            def jsonText = new File(configFile).text
+
+                        echo "🌿 Processing Branch: ${branch}"
+
+                        // Sandbox-safe: Check file existence and read content
+                        if (fileExists(configFile)) {
+                            def jsonText = readFile(configFile)
                             def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
                             def appName = json.AppSettings?.AppName ?: "N/A"
                             def version = json.AppSettings?.Version ?: "N/A"
-                            def envName = json.AppSettings?.Environment ?: "N/A"
+                            def environmentName = json.AppSettings?.Environment ?: "N/A"
                             def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
 
-                            echo "🌿 Processing Branch: ${branch}"
-                            echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${envName}, ExtraVar: ${extraVar}"
+                            echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
                         } else {
                             echo "⚠ ${branch} → Config file not found"
                         }
