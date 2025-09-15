@@ -5,7 +5,6 @@ pipeline {
         stage('Checkout Branch') {
             steps {
                 script {
-                    // Ensure branch checkout
                     checkout scm
                     echo "✅ Checked out branch: ${env.BRANCH_NAME}"
                 }
@@ -17,9 +16,12 @@ pipeline {
                 script {
                     def configFile = "appsettings.json"
 
-                    if (fileExists(configFile)) {
+                    if (env.BRANCH_NAME == "main") {
+                        echo "ℹ️ Skipping config load for main branch"
+                        currentBuild.description = "Main branch - Jenkinsfile only"
+                        currentBuild.displayName = "#${BUILD_NUMBER} - main"
+                    } else if (fileExists(configFile)) {
                         def configContent = readJSON file: configFile
-
                         def appName = configContent.AppSettings.AppName ?: "UnknownApp"
                         def version = configContent.AppSettings.Version ?: "N/A"
                         def environment = configContent.AppSettings.Environment ?: env.BRANCH_NAME
