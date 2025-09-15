@@ -2,32 +2,38 @@ pipeline {
     agent any
 
     stages {
+        stage('Checkout Branch') {
+            steps {
+                script {
+                    // Ensure branch checkout
+                    checkout scm
+                    echo "✅ Checked out branch: ${env.BRANCH_NAME}"
+                }
+            }
+        }
+
         stage('Read Config') {
             steps {
                 script {
-                    // current branch ghe
-                    def branchName = env.BRANCH_NAME ?: 'main'
-
-                    // file path ghe
                     def configFile = "appsettings.json"
 
-                    // file read kar
-                    def configContent = readJSON file: configFile
+                    if (fileExists(configFile)) {
+                        def configContent = readJSON file: configFile
 
-                    // values extract kar
-                    def appName = configContent.AppSettings.AppName ?: "UnknownApp"
-                    def version = configContent.AppSettings.Version ?: "N/A"
-                    def environment = configContent.AppSettings.Environment ?: branchName
+                        def appName = configContent.AppSettings.AppName ?: "UnknownApp"
+                        def version = configContent.AppSettings.Version ?: "N/A"
+                        def environment = configContent.AppSettings.Environment ?: env.BRANCH_NAME
 
-                    // console madhe show kar
-                    echo "✅ Branch: ${branchName}"
-                    echo "✅ App: ${appName}"
-                    echo "✅ Version: ${version}"
-                    echo "✅ Env: ${environment}"
+                        echo "✅ Branch: ${env.BRANCH_NAME}"
+                        echo "✅ App: ${appName}"
+                        echo "✅ Version: ${version}"
+                        echo "✅ Env: ${environment}"
 
-                    // BlueOcean summary sathi
-                    currentBuild.description = "App: ${appName} | Ver: ${version} | Env: ${environment}"
-                    currentBuild.displayName = "#${BUILD_NUMBER} - ${branchName}"
+                        currentBuild.description = "App: ${appName} | Ver: ${version} | Env: ${environment}"
+                        currentBuild.displayName = "#${BUILD_NUMBER} - ${env.BRANCH_NAME}"
+                    } else {
+                        error "❌ Config file not found in branch: ${env.BRANCH_NAME}"
+                    }
                 }
             }
         }
