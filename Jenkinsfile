@@ -2,37 +2,44 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout Branch') {
+        stage('Checkout Current Branch') {
             steps {
                 script {
-                    // Checkout the branch automatically in multibranch pipeline
                     echo "🌿 Running branch: ${env.BRANCH_NAME}"
+
+                    // Checkout सध्याचा branch (dev/qa/uat/prod)
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/${env.BRANCH_NAME}"]],
+                        userRemoteConfigs: [[
+                            url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                            credentialsId: 'Github-Credential'
+                        ]]
+                    ])
                 }
             }
         }
 
-        stage('Load Branch Config') {
+        stage('Load Config') {
             steps {
                 script {
-                    // Branch-specific appsettings file
-                    def configFile = "appsettings.json" // प्रत्येक branch मध्ये हे file आहे
+                    def configFile = "appsettings.json"
+
                     if (!fileExists(configFile)) {
-                        error "❌ Config file not found: ${configFile} in branch ${env.BRANCH_NAME}"
+                        error "❌ ${configFile} not found in branch ${env.BRANCH_NAME}"
                     }
 
+                    // Read branch specific appsettings.json
                     def config = readJSON file: configFile
 
-                    // Store values in env for Blue Ocean
-                    env.APP_NAME = config.AppSettings.AppName
-                    env.VERSION = config.AppSettings.Version
+                    env.APP_NAME    = config.AppSettings.AppName
+                    env.VERSION     = config.AppSettings.Version
                     env.ENVIRONMENT = config.AppSettings.Environment
-                    env.EXTRA_VAR = config.AppSettings.ExtraVar
 
-                    // Print in Blue Ocean logs
-                    echo "📝 AppName: ${env.APP_NAME}"
-                    echo "📝 Version: ${env.VERSION}"
-                    echo "📝 Environment: ${env.ENVIRONMENT}"
-                    echo "📝 ExtraVar: ${env.EXTRA_VAR}"
+                    echo "📂 Loaded Config from ${env.BRANCH_NAME}"
+                    echo "   📝 AppName    : ${env.APP_NAME}"
+                    echo "   📝 Version    : ${env.VERSION}"
+                    echo "   📝 Environment: ${env.ENVIRONMENT}"
                 }
             }
         }
@@ -40,8 +47,8 @@ pipeline {
         stage('Build & Deploy') {
             steps {
                 script {
-                    echo "🚀 Running Build & Deploy for branch: ${env.BRANCH_NAME}"
-                    // Add your actual build/deploy commands here
+                    echo "🚀 Starting Build & Deploy"
+                    // इथे actual build/deploy commands टाकायच्या
                 }
             }
         }
@@ -49,10 +56,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Build Succeeded | Branch: ${env.BRANCH_NAME} | App: ${env.APP_NAME} | Version: ${env.VERSION} | Env: ${env.ENVIRONMENT}"
+            echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME} | App: ${env.APP_NAME} | Version: ${env.VERSION} | Env: ${env.ENVIRONMENT}"
         }
         failure {
-            echo "❌ Build Failed | Branch: ${env.BRANCH_NAME} | App: ${env.APP_NAME} | Version: ${env.VERSION} | Env: ${env.ENVIRONMENT}"
+            echo "❌ FAILED | Branch: ${env.BRANCH_NAME}"
         }
     }
 }
