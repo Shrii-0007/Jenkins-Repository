@@ -4,21 +4,21 @@ pipeline {
     environment {
         APP_NAME = "MyApplication"
 
-        // Dummy DB URLs for now (replace with real DB URLs later)
+        // Dummy DB URLs
         DEV_DB_URL  = "DUMMY_DEV_DB"
         QA_DB_URL   = "DUMMY_QA_DB"
         UAT_DB_URL  = "DUMMY_UAT_DB"
         PROD_DB_URL = "DUMMY_PROD_DB"
 
-        // Optional: Jenkins credentials for future secure DB access
-        DEV_DB_USER  = credentials('dev-db-username')
-        DEV_DB_PASS  = credentials('dev-db-password')
-        QA_DB_USER   = credentials('qa-db-username')
-        QA_DB_PASS   = credentials('qa-db-password')
-        UAT_DB_USER  = credentials('uat-db-username')
-        UAT_DB_PASS  = credentials('uat-db-password')
-        PROD_DB_USER = credentials('prod-db-username')
-        PROD_DB_PASS = credentials('prod-db-password')
+        // Dummy DB credentials (avoid errors)
+        DEV_DB_USER  = "dummy_user"
+        DEV_DB_PASS  = "dummy_pass"
+        QA_DB_USER   = "dummy_user"
+        QA_DB_PASS   = "dummy_pass"
+        UAT_DB_USER  = "dummy_user"
+        UAT_DB_PASS  = "dummy_pass"
+        PROD_DB_USER = "dummy_user"
+        PROD_DB_PASS = "dummy_pass"
     }
 
     stages {
@@ -34,7 +34,7 @@ pipeline {
                 script {
                     def commitHash = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
                     env.VERSION = "${BUILD_NUMBER}-${commitHash}"
-                    
+
                     writeFile file: 'version.txt', text: """App: ${APP_NAME}
 Version: ${env.VERSION}
 Branch: ${env.BRANCH_NAME}"""
@@ -80,7 +80,7 @@ Branch: ${env.BRANCH_NAME}"""
                     echo "  🌿 Branch        : ${env.BRANCH_NAME}"
                     echo "  💾 DB URL        : ${dbUrl}"
                     echo "  👤 DB User       : ${dbUser}"
-                    echo "  🔒 DB Password   : ${dbPass.replaceAll(/./, '*')}"
+                    echo "  🔒 DB Password   : ${dbPass.replaceAll(/./, '*')}" // mask password
                     echo "  🚀 App Version   : ${env.VERSION}"
                     echo "======================================="
                 }
