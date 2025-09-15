@@ -12,7 +12,6 @@ pipeline {
                     branches.each { branch ->
                         echo "🌿 Processing Branch: ${branch}"
 
-                        // Wrap all SCM/file operations in 'ansiColor' + 'sh script' with redirect to hide logs
                         dir("tmp_${branch}") {
                             try {
                                 // Quiet checkout of only JSON file
@@ -26,9 +25,8 @@ pipeline {
                                     extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
                                 ])
 
-                                // Read JSON quietly
-                                def jsonText = readFile("appsettings.${branch}.json")
-                                def json = new groovy.json.JsonSlurper().parseText(jsonText)
+                                // Read JSON silently, preventing Jenkins dashboard from showing internal readFile step
+                                def json = readJsonQuietly("appsettings.${branch}.json")
 
                                 def appName = json.AppSettings?.AppName ?: "N/A"
                                 def version = json.AppSettings?.Version ?: "N/A"
@@ -37,7 +35,6 @@ pipeline {
 
                                 echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
                             } catch (Exception e) {
-                                // Silent skip if file or checkout fails
                                 echo "⚠ ${branch} → Config file not found or branch missing"
                             }
                         }
@@ -51,4 +48,11 @@ pipeline {
         success { echo "✅ All environment branches processed in order: Development → QA → UAT → Production" }
         failure { echo "❌ Pipeline failed!" }
     }
+}
+
+// Helper function to read JSON quietly
+@NonCPS
+def readJsonQuietly(filePath) {
+    def text = new File(filePath).text
+    return new groovy.json.JsonSlurper().parseText(text)
 }
