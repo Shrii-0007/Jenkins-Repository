@@ -3,78 +3,105 @@ pipeline {
 
     environment {
         APP_NAME = "MyDotNetApp"
-        VERSION = "1.0.${BUILD_NUMBER}"
+        BUILD_VERSION = "${env.BUILD_NUMBER}"
+        APP_ENV = "Unknown"
+        CONFIG_BRANCH = "main"
+    }
+
+    options {
+        timestamps()
+        ansiColor('xterm')
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Jenkinsfile') {
             steps {
+                echo "🌿 Running pipeline from branch: ${env.BRANCH_NAME}"
                 checkout scm
-                script {
-                    echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME} | Version: ${VERSION}"
-                }
             }
         }
 
-        stage('Setup .NET SDK') {
-            steps {
-                sh '''
-                    echo "📥 Installing .NET SDK..."
-                    wget https://dotnet.microsoft.com/download/dotnet/scripts/v1/dotnet-install.sh -O dotnet-install.sh
-                    chmod +x dotnet-install.sh
-                    ./dotnet-install.sh --channel 8.0 --install-dir $HOME/dotnet
-                    export PATH=$PATH:$HOME/dotnet
-                    dotnet --version
-                '''
-            }
-        }
-
-        stage('Select Config') {
+        stage('Select Environment Config') {
             steps {
                 script {
-                    def configFile = ""
-                    if (env.BRANCH_NAME == "development") {
-                        configFile = "appsettings.Development.json"
-                    } else if (env.BRANCH_NAME == "qa") {
-                        configFile = "appsettings.QA.json"
-                    } else if (env.BRANCH_NAME == "uat") {
-                        configFile = "appsettings.UAT.json"
-                    } else if (env.BRANCH_NAME == "prod") {
-                        configFile = "appsettings.Prod.json"
-                    } else {
-                        configFile = "appsettings.Development.json"
+                    // Branch → Environment mapping
+                    def envMap = [
+                        "development": "Development",
+                        "qa": "QA",
+                        "uat": "UAT",
+                        "prod": "Production"
+                    ]
+
+                    // Loop to find the branch that exists and fetch its appsettings
+                    envMap.each { branch, envName ->
+                        if (sh(script: "git ls-remote --heads origin ${branch}", returnStatus: true) == 0) {
+                            echo "✅ Using branch ${branch} with appsettings.${envName}.json"
+                            APP_ENV = envName
+                            CONFIG_BRANCH = branch
+                        }
                     }
-                    echo "📂 Using config file: ${configFile}"
+
+                    echo "ℹ️ Selected environment: ${APP_ENV}"
+                    echo "ℹ️ Config branch: ${CONFIG_BRANCH}"
+
+                    // Fetch the appsettings from that branch
+                    sh "git fetch origin ${CONFIG_BRANCH}:${CONFIG_BRANCH}"
+                    sh "git checkout ${CONFIG_BRANCH} -- appsettings.${APP_ENV}.json"
+                    sh "cp -f appsettings.${APP_ENV}.json appsettings.json"
                 }
+            }
+        }
+
+        stage('Check .NET Installation') {
+            steps {
+                sh 'dotnet --version'
+            }
+        }
+
+        stage('Restore') {
+            steps {
+                sh 'dotnet restore'
             }
         }
 
         stage('Build') {
             steps {
-                sh '''
-                    export PATH=$PATH:$HOME/dotnet
-                    dotnet restore
-                    dotnet build --configuration Release
-                '''
+                sh "dotnet build --configuration Release /p:Version=${BUILD_VERSION}"
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'dotnet test --no-build --verbosity normal'
             }
         }
 
         stage('Publish') {
             steps {
-                sh '''
-                    export PATH=$PATH:$HOME/dotnet
-                    dotnet publish -c Release -o out
-                '''
+                sh 'dotnet publish -c Release -o ./publish_output'
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo "🚀 Deploying build ${BUILD_VERSION} from main branch with environment: ${APP_ENV}"
+                // Add deployment steps here
             }
         }
     }
 
     post {
+        always {
+            echo "📊 Branch: ${env.BRANCH_NAME}, App: ${APP_NAME}, Version: ${BUILD_VERSION}, Env: ${APP_ENV}"
+        }
         success {
-            echo "🎉 Build Success | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME} | Version: ${VERSION}"
+            echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME} | Version: ${BUILD_VERSION} | Env: ${APP_ENV}"
         }
         failure {
-            echo "❌ Build Failed | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME}"
+            echo "❌ FAILED | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME} | Version: ${BUILD_VERSION} | Env: ${APP_ENV}"
         }
     }
 }
