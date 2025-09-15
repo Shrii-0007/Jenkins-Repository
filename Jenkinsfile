@@ -1,3 +1,5 @@
+def SUMMARY = ""  // Global variable for all branch summaries
+
 pipeline {
     agent any
     options {
@@ -6,8 +8,8 @@ pipeline {
     }
     environment {
         DOTNET_ROOT = "/usr/share/dotnet" // Adjust if needed
-        SUMMARY = ""
     }
+
     stages {
 
         stage('Checkout Jenkinsfile') {
@@ -20,7 +22,6 @@ pipeline {
         stage('Process All Config Branches') {
             steps {
                 script {
-                    // List of environment branches
                     def envBranches = ["development","qa","uat","prod","main"]
                     
                     envBranches.each { branch ->
@@ -29,26 +30,22 @@ pipeline {
                         if (status == 0) {
                             echo "✅ Found branch: ${branch}"
                             
-                            // Fetch branch
-                            sh "git fetch origin ${branch}:${branch}"
+                            // Fetch branch safely
+                            sh "git fetch origin ${branch}:${branch} || echo 'Fetch failed, branch may be empty'"
                             
-                            // Checkout appsettings
-                            sh "git checkout ${branch} -- appsettings.${branch.capitalize()}.json || echo 'No appsettings found'"
-                            
-                            // Read appsettings JSON
-                            def appEnv = branch.capitalize()
+                            // Checkout appsettings file if exists
+                            def configFile = "appsettings.${branch.capitalize()}.json"
                             def appVersion = "N/A"
-                            def configFile = "appsettings.${appEnv}.json"
-                            if (fileExists(configFile)) {
+                            if (sh(script: "git show ${branch}:${configFile}", returnStatus: true) == 0) {
+                                sh "git checkout ${branch} -- ${configFile}"
                                 def json = readJSON file: configFile
                                 appVersion = json?.Version ?: "N/A"
                             }
-                            
-                            // Append summary for Blue Ocean
-                            SUMMARY += "Branch: ${branch}, Env: ${appEnv}, Version: ${appVersion}\n"
-                            
+
+                            SUMMARY += "Branch: ${branch}, Env: ${branch.capitalize()}, Version: ${appVersion}\n"
+
                         } else {
-                            echo "⚠️ Branch not found on remote: ${branch}, skipping..."
+                            echo "⚠️ Branch not found: ${branch}, skipping..."
                         }
                     }
                 }
@@ -58,7 +55,6 @@ pipeline {
         stage('Dotnet Build') {
             steps {
                 script {
-                    // Only build for main or other active branch
                     echo "🚀 Building branch: ${env.BRANCH_NAME}"
                     sh 'dotnet restore'
                     sh 'dotnet build -c Release'
@@ -67,6 +63,7 @@ pipeline {
             }
         }
     }
+
     post {
         always {
             echo "📝 Final Branch Summary:\n${SUMMARY}"
