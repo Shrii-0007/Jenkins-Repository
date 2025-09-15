@@ -38,24 +38,29 @@ pipeline {
                         if (fileExists(configFile)) {
                             def config = readJSON file: configFile
 
-                            // Safely get VERSIONS and ENV_VARS
-                            def versions = (config.VERSIONS != null) ? config.VERSIONS.join(", ") : "No Versions Defined"
-                            def envVars  = (config.ENV_VARS != null) ? config.ENV_VARS.join(", ") : "No Env Vars Defined"
+                            // Read AppSettings
+                            def appName = config.AppSettings?.AppName ?: "N/A"
+                            def version = config.AppSettings?.Version ?: "N/A"
+                            def environment = config.AppSettings?.Environment ?: "N/A"
+                            def dbUrl = config.AppSettings?.DB_URL ?: "N/A"
+                            def extraVar = config.AppSettings?.ExtraVar ?: "N/A"
 
-                            echo "✅ ${branch} → Versions: ${versions} | Env Vars: ${envVars}"
+                            echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environment}, DB: ${dbUrl}, ExtraVar: ${extraVar}"
 
-                            // Add to dashboard summary
                             dashboardData << [
                                 branch: branch,
-                                versions: versions,
-                                envVars: envVars
+                                appName: appName,
+                                version: version,
+                                environment: environment,
+                                dbUrl: dbUrl,
+                                extraVar: extraVar
                             ]
                         } else {
                             echo "⚠ ${branch} → Config file not found, skipping..."
                         }
                     }
 
-                    // Save dashboard summary JSON
+                    // Write dashboard summary JSON
                     writeJSON file: 'dashboard_summary.json', json: dashboardData, pretty: 4
 
                     // Archive artifact for Blue Ocean
