@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout') {
+        stage('Checkout SCM') {
             steps {
                 checkout scm
             }
@@ -15,23 +15,26 @@ pipeline {
                     def branch = env.BRANCH_NAME
                     echo "🌿 Current branch: ${branch}"
 
-                    // Branch-specific JSON file
-                    def configFile = "appsettings.${branch}.json"
-
+                    // Branch-specific config file
+                    def configFile = "appsettings.json" // प्रत्येक branch मध्ये same file आहे
                     if (!fileExists(configFile)) {
                         error "❌ Config file not found: ${configFile}"
                     }
 
+                    // Read JSON
                     def config = readJSON file: configFile
 
-                    // Set env variables for Blue Ocean
+                    // Store values in environment variables for Blue Ocean
                     env.APP_NAME = config.AppSettings.AppName
-                    env.VERSION  = config.AppSettings.Version
-                    env.ENV      = config.AppSettings.Environment
-                    env.DB_URL   = config.AppSettings.DB_URL
-                    env.EXTRA    = config.AppSettings.ExtraVar
+                    env.VERSION = config.AppSettings.Version
+                    env.ENVIRONMENT = config.AppSettings.Environment
+                    env.EXTRA_VAR = config.AppSettings.ExtraVar
 
-                    echo "✅ Config loaded for branch: ${branch}"
+                    // Print for logs / Blue Ocean
+                    echo "📝 AppName: ${env.APP_NAME}"
+                    echo "📝 Version: ${env.VERSION}"
+                    echo "📝 Environment: ${env.ENVIRONMENT}"
+                    echo "📝 ExtraVar: ${env.EXTRA_VAR}"
                 }
             }
         }
@@ -39,22 +42,8 @@ pipeline {
         stage('Build & Deploy') {
             steps {
                 script {
-                    echo "======================================="
-                    echo "🚀 Deploying Branch: ${env.BRANCH_NAME}"
-                    echo "App: ${env.APP_NAME}"
-                    echo "Version: ${env.VERSION}"
-                    echo "Environment: ${env.ENV}"
-                    echo "DB URL: ${env.DB_URL}"
-                    echo "Extra Var: ${env.EXTRA}"
-                    echo "======================================="
-
-                    // Place your build/deploy commands here
-                    sh """
-                        echo "Starting deployment for ${env.BRANCH_NAME}"
-                        echo "App: $APP_NAME"
-                        echo "Version: $VERSION"
-                        echo "Environment: $ENV"
-                    """
+                    echo "🚀 Build & Deploy logic goes here for branch: ${env.BRANCH_NAME}"
+                    // Your build/deploy commands
                 }
             }
         }
@@ -62,7 +51,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Build & Deployment Successful for branch: ${env.BRANCH_NAME}"
+            echo "✅ Build Succeeded for branch: ${env.BRANCH_NAME} | Version: ${env.VERSION} | Environment: ${env.ENVIRONMENT}"
         }
         failure {
             echo "❌ Build Failed for branch: ${env.BRANCH_NAME}"
