@@ -2,20 +2,10 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout Current Branch') {
+        stage('Checkout SCM') {
             steps {
                 script {
-                    echo "🌿 Running branch: ${env.BRANCH_NAME}"
-
-                    // Checkout सध्याचा branch (dev/qa/uat/prod)
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: "*/${env.BRANCH_NAME}"]],
-                        userRemoteConfigs: [[
-                            url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
-                            credentialsId: 'Github-Credential'
-                        ]]
-                    ])
+                    echo "🌿 Current branch: ${env.BRANCH_NAME}"
                 }
             }
         }
@@ -23,33 +13,34 @@ pipeline {
         stage('Load Config') {
             steps {
                 script {
-                    def configFile = "appsettings.json"
+                    if (env.BRANCH_NAME == 'main') {
+                        echo "ℹ️ Skipping config load for main branch (no appsettings.json expected)"
+                        env.APP_NAME    = "MainBranch"
+                        env.VERSION     = "N/A"
+                        env.ENVIRONMENT = "N/A"
+                    } else {
+                        def configFile = "appsettings.json"
+                        if (!fileExists(configFile)) {
+                            error "❌ ${configFile} not found in branch ${env.BRANCH_NAME}"
+                        }
 
-                    if (!fileExists(configFile)) {
-                        error "❌ ${configFile} not found in branch ${env.BRANCH_NAME}"
+                        def config = readJSON file: configFile
+                        env.APP_NAME    = config.AppSettings.AppName
+                        env.VERSION     = config.AppSettings.Version
+                        env.ENVIRONMENT = config.AppSettings.Environment
+
+                        echo "📂 Config loaded from branch: ${env.BRANCH_NAME}"
+                        echo "   📝 AppName    : ${env.APP_NAME}"
+                        echo "   📝 Version    : ${env.VERSION}"
+                        echo "   📝 Environment: ${env.ENVIRONMENT}"
                     }
-
-                    // Read branch specific appsettings.json
-                    def config = readJSON file: configFile
-
-                    env.APP_NAME    = config.AppSettings.AppName
-                    env.VERSION     = config.AppSettings.Version
-                    env.ENVIRONMENT = config.AppSettings.Environment
-
-                    echo "📂 Loaded Config from ${env.BRANCH_NAME}"
-                    echo "   📝 AppName    : ${env.APP_NAME}"
-                    echo "   📝 Version    : ${env.VERSION}"
-                    echo "   📝 Environment: ${env.ENVIRONMENT}"
                 }
             }
         }
 
         stage('Build & Deploy') {
             steps {
-                script {
-                    echo "🚀 Starting Build & Deploy"
-                    // इथे actual build/deploy commands टाकायच्या
-                }
+                echo "🚀 Build & Deploy for ${env.BRANCH_NAME} | ${env.APP_NAME} | ${env.VERSION} | ${env.ENVIRONMENT}"
             }
         }
     }
