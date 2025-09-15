@@ -1,5 +1,3 @@
-import groovy.json.JsonSlurper
-
 pipeline {
     agent any
     options { timestamps() }
@@ -8,16 +6,16 @@ pipeline {
         stage('Process Environment Branches') {
             steps {
                 script {
+                    // List of environment branches
                     def branches = ['Development','QA','UAT','Production']
 
                     branches.each { branch ->
+                        def configFile = "appsettings.${branch}.json"
 
-                        def configFile = "${WORKSPACE}/appsettings.${branch}.json"
-
-                        if (new File(configFile).exists()) {
-                            // Read JSON with Groovy JsonSlurper
-                            def jsonText = new File(configFile).text
-                            def json = new JsonSlurper().parseText(jsonText)
+                        // Check if file exists
+                        if (fileExists(configFile)) {
+                            // Read JSON using readJSON step (sandbox safe)
+                            def json = readJSON file: configFile
 
                             def appName = json.AppSettings?.AppName ?: "N/A"
                             def version = json.AppSettings?.Version ?: "N/A"
@@ -27,7 +25,7 @@ pipeline {
                             echo "🌿 Processing Branch: ${branch}"
                             echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
                         }
-                        // If the file does not exist, do nothing — no ⚠ message
+                        // If file doesn't exist, skip silently
                     }
                 }
             }
