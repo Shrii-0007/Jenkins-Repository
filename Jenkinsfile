@@ -16,11 +16,11 @@ pipeline {
             steps {
                 script {
                     def envBranches = ['Development','QA','UAT','Production']
-                    def dashboardData = []
 
                     for (branch in envBranches) {
                         echo "🌿 Processing Branch: ${branch}"
 
+                        // Checkout branch
                         checkout([
                             $class: 'GitSCM',
                             branches: [[name: "*/${branch}"]],
@@ -37,32 +37,19 @@ pipeline {
                         if (fileExists(configFile)) {
                             def config = readJSON file: configFile
 
-                            // Read AppSettings safely
+                            // Read only non-sensitive info
                             def appName = config.AppSettings?.AppName ?: "N/A"
                             def version = config.AppSettings?.Version ?: "N/A"
                             def environment = config.AppSettings?.Environment ?: "N/A"
                             def extraVar = config.AppSettings?.ExtraVar ?: "N/A"
 
+                            // Print concise info for dashboard
                             echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environment}, ExtraVar: ${extraVar}"
 
-                            // Do NOT include DB_URL or other secrets
-                            dashboardData << [
-                                branch: branch,
-                                appName: appName,
-                                version: version,
-                                environment: environment,
-                                extraVar: extraVar
-                            ]
                         } else {
-                            echo "⚠ ${branch} → Config file not found, skipping..."
+                            echo "⚠ ${branch} → Config file not found"
                         }
                     }
-
-                    // Write dashboard summary JSON without credentials
-                    writeJSON file: 'dashboard_summary.json', json: dashboardData, pretty: 4
-
-                    // Archive artifact for Blue Ocean
-                    archiveArtifacts artifacts: 'dashboard_summary.json', allowEmptyArchive: true
                 }
             }
         }
@@ -70,7 +57,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Dashboard artifact created for all environment branches (no credentials included)!"
+            echo "✅ All environment branches processed!"
         }
         failure {
             echo "❌ Pipeline failed!"
