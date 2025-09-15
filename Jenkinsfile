@@ -6,16 +6,24 @@ pipeline {
         stage('Process All Environment Branches') {
             steps {
                 script {
-                    // Define environment branches
+                    // Branches in desired order
                     def branches = ['Development', 'QA', 'UAT', 'Production']
 
                     branches.each { branch ->
-                        // Compose JSON file name per branch
-                        def configFile = "appsettings.${branch}.json"
-
                         echo "🌿 Processing Branch: ${branch}"
 
-                        // Sandbox-safe: Check file existence and read content
+                        // Checkout only the JSON file for this branch (sparse checkout)
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "origin/${branch}"]],
+                            userRemoteConfigs: [[
+                                url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                                credentialsId: 'Github-Credential'
+                            ]],
+                            extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
+                        ])
+
+                        def configFile = "appsettings.${branch}.json"
                         if (fileExists(configFile)) {
                             def jsonText = readFile(configFile)
                             def json = new groovy.json.JsonSlurper().parseText(jsonText)
@@ -36,7 +44,7 @@ pipeline {
     }
 
     post {
-        success { echo "✅ All environment branches processed!" }
+        success { echo "✅ All environment branches processed in order: Development → QA → UAT → Production" }
         failure { echo "❌ Pipeline failed!" }
     }
 }
