@@ -21,6 +21,7 @@ pipeline {
                     for (branch in envBranches) {
                         echo "🌿 Processing Branch: ${branch}"
 
+                        // Checkout branch
                         checkout([
                             $class: 'GitSCM',
                             branches: [[name: "*/${branch}"]],
@@ -36,12 +37,14 @@ pipeline {
 
                         if (fileExists(configFile)) {
                             def config = readJSON file: configFile
-                            def versions = config.VERSIONS.join(", ")
-                            def envVars = config.ENV_VARS.join(", ")
+
+                            // Safely get VERSIONS and ENV_VARS
+                            def versions = (config.VERSIONS != null) ? config.VERSIONS.join(", ") : "No Versions Defined"
+                            def envVars  = (config.ENV_VARS != null) ? config.ENV_VARS.join(", ") : "No Env Vars Defined"
 
                             echo "✅ ${branch} → Versions: ${versions} | Env Vars: ${envVars}"
 
-                            // Add branch info to dashboard data
+                            // Add to dashboard summary
                             dashboardData << [
                                 branch: branch,
                                 versions: versions,
@@ -52,7 +55,7 @@ pipeline {
                         }
                     }
 
-                    // Write dashboard summary JSON
+                    // Save dashboard summary JSON
                     writeJSON file: 'dashboard_summary.json', json: dashboardData, pretty: 4
 
                     // Archive artifact for Blue Ocean
@@ -64,7 +67,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Dashboard artifact created for all branches!"
+            echo "✅ Dashboard artifact created for all environment branches!"
         }
         failure {
             echo "❌ Pipeline failed!"
