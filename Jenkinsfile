@@ -6,36 +6,28 @@ pipeline {
         stage('Process Environment Branches') {
             steps {
                 script {
-                    // Correct branch list (unique)
+                    // List of branches
                     def branches = ['Development','QA','UAT','Production']
 
                     branches.each { branch ->
-                        echo "🌿 Processing Branch: ${branch}"
+                        // Use shell to silently fetch the branch
+                        sh """
+                        git fetch origin ${branch}:${branch} --quiet
+                        git checkout ${branch} --quiet
+                        """
 
-                        // Checkout branch silently
-                        checkout([$class: 'GitSCM',
-                                  branches: [[name: "refs/heads/${branch}"]],
-                                  userRemoteConfigs: [[
-                                      url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
-                                      credentialsId: 'Github-Credential'
-                                  ]],
-                                  extensions: [
-                                      [$class: 'CloneOption', shallow: true, depth: 1, noTags: true],
-                                      [$class: 'CleanBeforeCheckout']
-                                  ]
-                        ])
-
-                        // Read JSON file
+                        // Read JSON silently without logging SCM steps
                         def configFile = "appsettings.${branch}.json"
-
                         if (fileExists(configFile)) {
-                            def json = readJSON file: configFile
+                            def jsonText = readFile(configFile)  // simple readFile, no extra logs
+                            def json = new groovy.json.JsonSlurper().parseText(jsonText)
+
                             def appName = json.AppSettings?.AppName ?: "N/A"
                             def version = json.AppSettings?.Version ?: "N/A"
                             def envName = json.AppSettings?.Environment ?: "N/A"
                             def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
 
-                            // Echo only your desired content
+                            echo "🌿 Processing Branch: ${branch}"
                             echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${envName}, ExtraVar: ${extraVar}"
                         } else {
                             echo "⚠ ${branch} → Config file not found"
