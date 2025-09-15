@@ -1,58 +1,59 @@
 pipeline {
     agent any
-
+    environment {
+        APP_NAME = "MyDotNetApp"
+        VERSION = "1.0.${BUILD_NUMBER}"
+    }
     stages {
-        stage('Checkout Branch') {
+        stage('Checkout') {
             steps {
+                checkout scm
                 script {
-                    checkout scm
-                    echo "✅ Checked out branch: ${env.BRANCH_NAME}"
+                    echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME} | Version: ${VERSION}"
                 }
             }
         }
 
-        stage('Read Config') {
+        stage('Select Config') {
             steps {
                 script {
-                    def configFile = "appsettings.json"
-
-                    if (env.BRANCH_NAME == "main") {
-                        echo "ℹ️ Skipping config load for main branch"
-                        currentBuild.description = "Main branch - Jenkinsfile only"
-                        currentBuild.displayName = "#${BUILD_NUMBER} - main"
-                    } else if (fileExists(configFile)) {
-                        def configContent = readJSON file: configFile
-                        def appName = configContent.AppSettings.AppName ?: "UnknownApp"
-                        def version = configContent.AppSettings.Version ?: "N/A"
-                        def environment = configContent.AppSettings.Environment ?: env.BRANCH_NAME
-
-                        echo "✅ Branch: ${env.BRANCH_NAME}"
-                        echo "✅ App: ${appName}"
-                        echo "✅ Version: ${version}"
-                        echo "✅ Env: ${environment}"
-
-                        currentBuild.description = "App: ${appName} | Ver: ${version} | Env: ${environment}"
-                        currentBuild.displayName = "#${BUILD_NUMBER} - ${env.BRANCH_NAME}"
+                    def configFile = ""
+                    if (env.BRANCH_NAME == "development") {
+                        configFile = "appsettings.Development.json"
+                    } else if (env.BRANCH_NAME == "qa") {
+                        configFile = "appsettings.QA.json"
+                    } else if (env.BRANCH_NAME == "uat") {
+                        configFile = "appsettings.UAT.json"
+                    } else if (env.BRANCH_NAME == "prod") {
+                        configFile = "appsettings.Prod.json"
                     } else {
-                        error "❌ Config file not found in branch: ${env.BRANCH_NAME}"
+                        configFile = "appsettings.Development.json"
                     }
+
+                    echo "Using config file: ${configFile}"
                 }
             }
         }
 
         stage('Build') {
             steps {
-                echo "🚀 Building ${env.BRANCH_NAME} branch..."
+                sh 'dotnet restore'
+                sh 'dotnet build --configuration Release'
+            }
+        }
+
+        stage('Publish') {
+            steps {
+                sh 'dotnet publish -c Release -o out'
             }
         }
     }
-
     post {
         success {
-            echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME}"
+            echo "🎉 Build Success | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME} | Version: ${VERSION}"
         }
         failure {
-            echo "❌ FAILED | Branch: ${env.BRANCH_NAME}"
+            echo "❌ Build Failed | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME}"
         }
     }
 }
