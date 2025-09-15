@@ -1,9 +1,6 @@
 pipeline {
     agent any
-    options {
-        timestamps()
-        skipDefaultCheckout()
-    }
+    options { timestamps() }
 
     environment {
         GIT_REPO = "https://github.com/Shrii-0007/Jenkins-Repository.git"
@@ -11,21 +8,20 @@ pipeline {
     }
 
     stages {
-
         stage('Process Environment Branches') {
             steps {
                 script {
-                    def envBranches = ['Development','QA','UAT','Production']
+                    def branches = ['Development','QA','UAT','Production']
 
-                    for (branch in envBranches) {
+                    for (branch in branches) {
                         echo "🌿 Processing Branch: ${branch}"
 
-                        // Checkout branch
+                        // Checkout only the specific branch silently
                         checkout([
                             $class: 'GitSCM',
                             branches: [[name: "*/${branch}"]],
                             doGenerateSubmoduleConfigurations: false,
-                            extensions: [],
+                            extensions: [[$class: 'CloneOption', noTags: true, shallow: true, timeout: 10]],
                             userRemoteConfigs: [[
                                 url: env.GIT_REPO,
                                 credentialsId: env.GIT_CREDENTIALS
@@ -33,17 +29,15 @@ pipeline {
                         ])
 
                         def configFile = "appsettings.${branch}.json"
-
                         if (fileExists(configFile)) {
                             def config = readJSON file: configFile
 
-                            // Read only non-sensitive info
                             def appName = config.AppSettings?.AppName ?: "N/A"
                             def version = config.AppSettings?.Version ?: "N/A"
                             def environment = config.AppSettings?.Environment ?: "N/A"
                             def extraVar = config.AppSettings?.ExtraVar ?: "N/A"
 
-                            // Print concise info for dashboard
+                            // ✅ Only this message will show on Blue Ocean
                             echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environment}, ExtraVar: ${extraVar}"
 
                         } else {
@@ -56,11 +50,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "✅ All environment branches processed!"
-        }
-        failure {
-            echo "❌ Pipeline failed!"
-        }
+        success { echo "✅ All environment branches processed!" }
+        failure { echo "❌ Pipeline failed!" }
     }
 }
