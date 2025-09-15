@@ -8,38 +8,26 @@ pipeline {
         stage('Process Environment Branches') {
             steps {
                 script {
-                    // Define branches
                     def branches = ['Development','QA','UAT','Production']
 
                     branches.each { branch ->
 
-                        echo "🌿 Processing Branch: ${branch}"
+                        def configFile = "${WORKSPACE}/appsettings.${branch}.json"
 
-                        // Use pure Groovy to read the JSON file
-                        def configFile = "appsettings.${branch}.json"
-                        def appName = "N/A"
-                        def version = "N/A"
-                        def environmentName = "N/A"
-                        def extraVar = "N/A"
-
-                        // Use try-catch to avoid pipeline step logging
-                        try {
-                            // Read file content using Groovy File class, not Jenkins step
-                            def jsonText = new File("${WORKSPACE}/${configFile}").text
+                        if (new File(configFile).exists()) {
+                            // Read JSON with Groovy JsonSlurper
+                            def jsonText = new File(configFile).text
                             def json = new JsonSlurper().parseText(jsonText)
 
-                            appName = json.AppSettings?.AppName ?: "N/A"
-                            version = json.AppSettings?.Version ?: "N/A"
-                            environmentName = json.AppSettings?.Environment ?: "N/A"
-                            extraVar = json.AppSettings?.ExtraVar ?: "N/A"
+                            def appName = json.AppSettings?.AppName ?: "N/A"
+                            def version = json.AppSettings?.Version ?: "N/A"
+                            def environmentName = json.AppSettings?.Environment ?: "N/A"
+                            def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
 
-                        } catch (Exception e) {
-                            // File not found or parse error
-                            echo "⚠ ${branch} → Config file not found or invalid"
+                            echo "🌿 Processing Branch: ${branch}"
+                            echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
                         }
-
-                        // Only this message will appear on Blue Ocean
-                        echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
+                        // If the file does not exist, do nothing — no ⚠ message
                     }
                 }
             }
