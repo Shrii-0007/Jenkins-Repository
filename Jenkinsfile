@@ -6,36 +6,39 @@ pipeline {
         stage('Process All Environment Branches') {
             steps {
                 script {
-                    // Branches in desired order
+                    // Desired branch order
                     def branches = ['Development', 'QA', 'UAT', 'Production']
 
                     branches.each { branch ->
                         echo "🌿 Processing Branch: ${branch}"
 
-                        // Checkout only the JSON file for this branch (sparse checkout)
-                        checkout([
-                            $class: 'GitSCM',
-                            branches: [[name: "origin/${branch}"]],
-                            userRemoteConfigs: [[
-                                url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
-                                credentialsId: 'Github-Credential'
-                            ]],
-                            extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
-                        ])
+                        // Use a temporary folder for checkout to hide SCM logs
+                        dir("tmp_${branch}") {
+                            // Checkout only JSON file quietly
+                            checkout([
+                                $class: 'GitSCM',
+                                branches: [[name: "origin/${branch}"]],
+                                userRemoteConfigs: [[
+                                    url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                                    credentialsId: 'Github-Credential'
+                                ]],
+                                extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
+                            ])
 
-                        def configFile = "appsettings.${branch}.json"
-                        if (fileExists(configFile)) {
-                            def jsonText = readFile(configFile)
-                            def json = new groovy.json.JsonSlurper().parseText(jsonText)
+                            def configFile = "appsettings.${branch}.json"
+                            if (fileExists(configFile)) {
+                                def jsonText = readFile(configFile)
+                                def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
-                            def appName = json.AppSettings?.AppName ?: "N/A"
-                            def version = json.AppSettings?.Version ?: "N/A"
-                            def environmentName = json.AppSettings?.Environment ?: "N/A"
-                            def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
+                                def appName = json.AppSettings?.AppName ?: "N/A"
+                                def version = json.AppSettings?.Version ?: "N/A"
+                                def environmentName = json.AppSettings?.Environment ?: "N/A"
+                                def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
 
-                            echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
-                        } else {
-                            echo "⚠ ${branch} → Config file not found"
+                                echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
+                            } else {
+                                echo "⚠ ${branch} → Config file not found"
+                            }
                         }
                     }
                 }
