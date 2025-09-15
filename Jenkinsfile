@@ -3,11 +3,11 @@ pipeline {
     options { timestamps() }
 
     stages {
-        stage('Process All Environment Branches') {
+        stage('Process Environment Branches') {
             steps {
                 script {
-                    // Branch list
-                    def branches = ['Development','QA','UAT','UAT','Production']
+                    // Correct branch list (unique)
+                    def branches = ['Development','QA','UAT','Production']
 
                     branches.each { branch ->
                         echo "🌿 Processing Branch: ${branch}"
@@ -25,18 +25,20 @@ pipeline {
                                   ]
                         ])
 
+                        // Read JSON file
                         def configFile = "appsettings.${branch}.json"
 
                         if (fileExists(configFile)) {
                             def json = readJSON file: configFile
                             def appName = json.AppSettings?.AppName ?: "N/A"
                             def version = json.AppSettings?.Version ?: "N/A"
-                            def environmentName = json.AppSettings?.Environment ?: "N/A"
+                            def envName = json.AppSettings?.Environment ?: "N/A"
                             def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
 
-                            echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
+                            // Echo only your desired content
+                            echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${envName}, ExtraVar: ${extraVar}"
                         } else {
-                            echo "⚠ ${branch} → Config file not found, skipping."
+                            echo "⚠ ${branch} → Config file not found"
                         }
                     }
                 }
