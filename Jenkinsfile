@@ -2,52 +2,46 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout SCM') {
+        stage('Read Config') {
             steps {
                 script {
-                    echo "🌿 Current branch: ${env.BRANCH_NAME}"
+                    // current branch ghe
+                    def branchName = env.BRANCH_NAME ?: 'main'
+
+                    // file path ghe
+                    def configFile = "appsettings.json"
+
+                    // file read kar
+                    def configContent = readJSON file: configFile
+
+                    // values extract kar
+                    def appName = configContent.AppSettings.AppName ?: "UnknownApp"
+                    def version = configContent.AppSettings.Version ?: "N/A"
+                    def environment = configContent.AppSettings.Environment ?: branchName
+
+                    // console madhe show kar
+                    echo "✅ Branch: ${branchName}"
+                    echo "✅ App: ${appName}"
+                    echo "✅ Version: ${version}"
+                    echo "✅ Env: ${environment}"
+
+                    // BlueOcean summary sathi
+                    currentBuild.description = "App: ${appName} | Ver: ${version} | Env: ${environment}"
+                    currentBuild.displayName = "#${BUILD_NUMBER} - ${branchName}"
                 }
             }
         }
 
-        stage('Load Config') {
+        stage('Build') {
             steps {
-                script {
-                    if (env.BRANCH_NAME == 'main') {
-                        echo "ℹ️ Skipping config load for main branch (no appsettings.json expected)"
-                        env.APP_NAME    = "MainBranch"
-                        env.VERSION     = "N/A"
-                        env.ENVIRONMENT = "N/A"
-                    } else {
-                        def configFile = "appsettings.json"
-                        if (!fileExists(configFile)) {
-                            error "❌ ${configFile} not found in branch ${env.BRANCH_NAME}"
-                        }
-
-                        def config = readJSON file: configFile
-                        env.APP_NAME    = config.AppSettings.AppName
-                        env.VERSION     = config.AppSettings.Version
-                        env.ENVIRONMENT = config.AppSettings.Environment
-
-                        echo "📂 Config loaded from branch: ${env.BRANCH_NAME}"
-                        echo "   📝 AppName    : ${env.APP_NAME}"
-                        echo "   📝 Version    : ${env.VERSION}"
-                        echo "   📝 Environment: ${env.ENVIRONMENT}"
-                    }
-                }
-            }
-        }
-
-        stage('Build & Deploy') {
-            steps {
-                echo "🚀 Build & Deploy for ${env.BRANCH_NAME} | ${env.APP_NAME} | ${env.VERSION} | ${env.ENVIRONMENT}"
+                echo "🚀 Building ${env.BRANCH_NAME} branch..."
             }
         }
     }
 
     post {
         success {
-            echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME} | App: ${env.APP_NAME} | Version: ${env.VERSION} | Env: ${env.ENVIRONMENT}"
+            echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME}"
         }
         failure {
             echo "❌ FAILED | Branch: ${env.BRANCH_NAME}"
