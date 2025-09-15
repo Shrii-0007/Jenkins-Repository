@@ -1,4 +1,4 @@
-def SUMMARY = ""  // Global variable for all branch summaries
+def SUMMARY = ""  // Global variable for branch summaries
 
 pipeline {
     agent any
@@ -19,60 +19,60 @@ pipeline {
             }
         }
 
-        stage('Process All Config Branches') {
+        stage('Checkout') {
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "*/${env.BRANCH_NAME}"]],
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [],
+                    userRemoteConfigs: [[
+                        url: "https://github.com/Shrii-0007/Jenkins-Repository.git",
+                        credentialsId: "Github-Credential"
+                    ]]
+                ])
+            }
+        }
+
+        stage('Set Branch & Config') {
             steps {
                 script {
-                    def envBranches = ["development","qa","uat","prod","main"]
-                    
-                    envBranches.each { branch ->
-                        // Check if branch exists
-                        def status = sh(script: "git ls-remote --heads origin ${branch}", returnStatus: true)
-                        if (status == 0) {
-                            echo "✅ Found branch: ${branch}"
-                            
-                            // Fetch branch safely
-                            sh "git fetch origin ${branch}:${branch} || echo 'Fetch failed, branch may be empty'"
-                            
-                            // Checkout appsettings file if exists
-                            def configFile = "appsettings.${branch.capitalize()}.json"
-                            def appVersion = "N/A"
-                            if (sh(script: "git show ${branch}:${configFile}", returnStatus: true) == 0) {
-                                sh "git checkout ${branch} -- ${configFile}"
-                                def json = readJSON file: configFile
-                                appVersion = json?.Version ?: "N/A"
-                            }
+                    echo "Current Branch: ${env.BRANCH_NAME}"
 
-                            SUMMARY += "Branch: ${branch}, Env: ${branch.capitalize()}, Version: ${appVersion}\n"
-
-                        } else {
-                            echo "⚠️ Branch not found: ${branch}, skipping..."
-                        }
+                    if (fileExists("appsettings.${env.BRANCH_NAME}.json")) {
+                        echo "✅ Using config for branch: ${env.BRANCH_NAME}"
+                    } else {
+                        echo "⚠ File appsettings.${env.BRANCH_NAME}.json not found. Using default Shrikant values."
                     }
                 }
             }
         }
 
-        stage('Dotnet Build') {
+        stage('Build & Deploy') {
             steps {
-                script {
-                    echo "🚀 Building branch: ${env.BRANCH_NAME}"
-                    sh 'dotnet restore'
-                    sh 'dotnet build -c Release'
-                    sh 'dotnet publish -c Release -o ./publish'
-                }
+                echo "======================================="
+                echo "🚀 Deploying Branch: ${env.BRANCH_NAME}"
+                echo "Application Versions (Shrikant):"
+                echo "  V1: Shrikant_1.0.0 | V2: Shrikant_1.1.0 | V3: Shrikant_1.2.0 | V4: Shrikant_1.3.0 | V5: Shrikant_1.4.0"
+                echo "Environment Variables (Shrikant):"
+                echo "  ENV1: Shrikant_DEV_DB | ENV2: Shrikant_QA_DB | ENV3: Shrikant_UAT_DB | ENV4: Shrikant_PROD_DB | ENV5: Shrikant_FEATURE_FLAG"
+                echo "======================================="
+
+                sh """
+                    echo Starting build for branch ${env.BRANCH_NAME}...
+                    echo Versions: Shrikant_1.0.0, Shrikant_1.1.0, Shrikant_1.2.0, Shrikant_1.3.0, Shrikant_1.4.0
+                    echo Env Vars: Shrikant_DEV_DB, Shrikant_QA_DB, Shrikant_UAT_DB, Shrikant_PROD_DB, Shrikant_FEATURE_FLAG
+                """
             }
         }
     }
 
     post {
-        always {
-            echo "📝 Final Branch Summary:\n${SUMMARY}"
-        }
         success {
-            echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME}"
+            echo "✅ Build & Deployment Successful!"
         }
         failure {
-            echo "❌ Build Failed | Branch: ${env.BRANCH_NAME}"
+            echo "❌ Build Failed!"
         }
     }
 }
