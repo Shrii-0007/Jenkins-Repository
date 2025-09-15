@@ -1,9 +1,11 @@
 pipeline {
     agent any
+
     environment {
         APP_NAME = "MyDotNetApp"
         VERSION = "1.0.${BUILD_NUMBER}"
     }
+
     stages {
         stage('Checkout') {
             steps {
@@ -11,6 +13,19 @@ pipeline {
                 script {
                     echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME} | Version: ${VERSION}"
                 }
+            }
+        }
+
+        stage('Setup .NET SDK') {
+            steps {
+                sh '''
+                    echo "📥 Installing .NET SDK..."
+                    wget https://dotnet.microsoft.com/download/dotnet/scripts/v1/dotnet-install.sh -O dotnet-install.sh
+                    chmod +x dotnet-install.sh
+                    ./dotnet-install.sh --channel 8.0 --install-dir $HOME/dotnet
+                    export PATH=$PATH:$HOME/dotnet
+                    dotnet --version
+                '''
             }
         }
 
@@ -29,25 +44,31 @@ pipeline {
                     } else {
                         configFile = "appsettings.Development.json"
                     }
-
-                    echo "Using config file: ${configFile}"
+                    echo "📂 Using config file: ${configFile}"
                 }
             }
         }
 
         stage('Build') {
             steps {
-                sh 'dotnet restore'
-                sh 'dotnet build --configuration Release'
+                sh '''
+                    export PATH=$PATH:$HOME/dotnet
+                    dotnet restore
+                    dotnet build --configuration Release
+                '''
             }
         }
 
         stage('Publish') {
             steps {
-                sh 'dotnet publish -c Release -o out'
+                sh '''
+                    export PATH=$PATH:$HOME/dotnet
+                    dotnet publish -c Release -o out
+                '''
             }
         }
     }
+
     post {
         success {
             echo "🎉 Build Success | Branch: ${env.BRANCH_NAME} | App: ${APP_NAME} | Version: ${VERSION}"
