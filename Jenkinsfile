@@ -1,15 +1,13 @@
 pipeline {
     agent any
-
-    environment {
-        APP_NAME = "MyDotNetApp"
-        SUMMARY = ""
-    }
-
     options {
         timestamps()
+        skipDefaultCheckout()
     }
-
+    environment {
+        DOTNET_ROOT = "/usr/share/dotnet" // Adjust if needed
+        SUMMARY = ""
+    }
     stages {
 
         stage('Checkout Jenkinsfile') {
@@ -22,49 +20,62 @@ pipeline {
         stage('Process All Config Branches') {
             steps {
                 script {
-                    // Branches jithe appsettings files aahet
-                    def envBranches = ["development", "qa", "uat", "prod", "main"]
-                    SUMMARY = ""
-
+                    // List of environment branches
+                    def envBranches = ["development","qa","uat","prod","main"]
+                    
                     envBranches.each { branch ->
-                        if (sh(script: "git ls-remote --heads origin ${branch}", returnStatus: true) == 0) {
+                        // Check if branch exists
+                        def status = sh(script: "git ls-remote --heads origin ${branch}", returnStatus: true)
+                        if (status == 0) {
                             echo "✅ Found branch: ${branch}"
-
-                            // Fetch branch and copy appsettings
+                            
+                            // Fetch branch
                             sh "git fetch origin ${branch}:${branch}"
+                            
+                            // Checkout appsettings
                             sh "git checkout ${branch} -- appsettings.${branch.capitalize()}.json || echo 'No appsettings found'"
-
-                            // Default fallback
+                            
+                            // Read appsettings JSON
                             def appEnv = branch.capitalize()
                             def appVersion = "N/A"
-
-                            // Read version from JSON if exists
-                            if (fileExists("appsettings.${appEnv}.json")) {
-                                def json = readJSON file: "appsettings.${appEnv}.json"
+                            def configFile = "appsettings.${appEnv}.json"
+                            if (fileExists(configFile)) {
+                                def json = readJSON file: configFile
                                 appVersion = json?.Version ?: "N/A"
                             }
-
+                            
+                            // Append summary for Blue Ocean
                             SUMMARY += "Branch: ${branch}, Env: ${appEnv}, Version: ${appVersion}\n"
-
-                            // Optional: build only main/development
-                            if (branch == "main" || branch == "development") {
-                                sh "dotnet restore"
-                                sh "dotnet build --configuration Release /p:Version=${appVersion}"
-                            }
+                            
                         } else {
-                            echo "⚠️ Branch not found: ${branch}"
+                            echo "⚠️ Branch not found on remote: ${branch}, skipping..."
                         }
                     }
+                }
+            }
+        }
 
-                    echo "\n📊 Summary of all branches:\n${SUMMARY}"
+        stage('Dotnet Build') {
+            steps {
+                script {
+                    // Only build for main or other active branch
+                    echo "🚀 Building branch: ${env.BRANCH_NAME}"
+                    sh 'dotnet restore'
+                    sh 'dotnet build -c Release'
+                    sh 'dotnet publish -c Release -o ./publish'
                 }
             }
         }
     }
-
     post {
         always {
             echo "📝 Final Branch Summary:\n${SUMMARY}"
+        }
+        success {
+            echo "✅ SUCCESS | Branch: ${env.BRANCH_NAME}"
+        }
+        failure {
+            echo "❌ Build Failed | Branch: ${env.BRANCH_NAME}"
         }
     }
 }
