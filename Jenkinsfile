@@ -1,26 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        APP_NAME = "MyApplication"
-
-        // Dummy DB URLs
-        DEV_DB_URL  = "DUMMY_DEV_DB"
-        QA_DB_URL   = "DUMMY_QA_DB"
-        UAT_DB_URL  = "DUMMY_UAT_DB"
-        PROD_DB_URL = "DUMMY_PROD_DB"
-
-        // Dummy DB credentials (avoid errors)
-        DEV_DB_USER  = "dummy_user"
-        DEV_DB_PASS  = "dummy_pass"
-        QA_DB_USER   = "dummy_user"
-        QA_DB_PASS   = "dummy_pass"
-        UAT_DB_USER  = "dummy_user"
-        UAT_DB_PASS  = "dummy_pass"
-        PROD_DB_USER = "dummy_user"
-        PROD_DB_PASS = "dummy_pass"
-    }
-
     stages {
 
         stage('Checkout') {
@@ -29,59 +9,34 @@ pipeline {
             }
         }
 
-        stage('Set Version') {
+        stage('Read .NET Config') {
             steps {
                 script {
-                    def commitHash = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                    env.VERSION = "${BUILD_NUMBER}-${commitHash}"
-
-                    writeFile file: 'version.txt', text: """App: ${APP_NAME}
-Version: ${env.VERSION}
-Branch: ${env.BRANCH_NAME}"""
-                }
-            }
-        }
-
-        stage('Show Environment Variables') {
-            steps {
-                script {
-                    def dbUrl = ""
-                    def dbUser = ""
-                    def dbPass = ""
-
-                    switch(env.BRANCH_NAME) {
-                        case 'dev':
-                            dbUrl = DEV_DB_URL
-                            dbUser = DEV_DB_USER
-                            dbPass = DEV_DB_PASS
-                            break
-                        case 'qa':
-                            dbUrl = QA_DB_URL
-                            dbUser = QA_DB_USER
-                            dbPass = QA_DB_PASS
-                            break
-                        case 'uat':
-                            dbUrl = UAT_DB_URL
-                            dbUser = UAT_DB_USER
-                            dbPass = UAT_DB_PASS
-                            break
-                        case 'prod':
-                            dbUrl = PROD_DB_URL
-                            dbUser = PROD_DB_USER
-                            dbPass = PROD_DB_PASS
-                            break
-                        default:
-                            dbUrl = "No DB Config"
-                            dbUser = "N/A"
-                            dbPass = "N/A"
+                    def configFile = ''
+                    switch(env.BRANCH_NAME.toLowerCase()) {
+                        case 'dev':     configFile = 'appsettings.Development.json'; break
+                        case 'qa':      configFile = 'appsettings.QA.json'; break
+                        case 'uat':     configFile = 'appsettings.UAT.json'; break
+                        case 'staging': configFile = 'appsettings.Staging.json'; break
+                        case 'prod':    configFile = 'appsettings.Production.json'; break
+                        default:        configFile = 'appsettings.json'
                     }
 
+                    // Read JSON content (requires Pipeline Utility Steps plugin)
+                    def jsonContent = readJSON file: configFile
+
+                    env.APP_NAME  = jsonContent.AppSettings.AppName
+                    env.VERSION   = jsonContent.AppSettings.Version
+                    env.ENV_NAME  = jsonContent.AppSettings.Environment
+                    env.DB_URL    = jsonContent.AppSettings.DB_URL
+                    env.EXTRA_VAR = jsonContent.AppSettings.ExtraVar
+
                     echo "======================================="
-                    echo "  🌿 Branch        : ${env.BRANCH_NAME}"
-                    echo "  💾 DB URL        : ${dbUrl}"
-                    echo "  👤 DB User       : ${dbUser}"
-                    echo "  🔒 DB Password   : ${dbPass.replaceAll(/./, '*')}" // mask password
-                    echo "  🚀 App Version   : ${env.VERSION}"
+                    echo "🌿 Branch      : ${env.BRANCH_NAME}"
+                    echo "🚀 App         : ${env.APP_NAME}"
+                    echo "⚡ Version     : ${env.VERSION}"
+                    echo "💾 DB URL      : ${env.DB_URL}"
+                    echo "💡 Extra Var   : ${env.EXTRA_VAR}"
                     echo "======================================="
                 }
             }
@@ -94,6 +49,7 @@ Branch: ${env.BRANCH_NAME}"""
                     echo "App: $APP_NAME"
                     echo "Version: $VERSION"
                     echo "Branch: $BRANCH_NAME"
+                    echo "Env Var: $EXTRA_VAR"
                 '''
             }
         }
@@ -102,7 +58,6 @@ Branch: ${env.BRANCH_NAME}"""
     post {
         success {
             echo "✅ Build & Deployment Successful!"
-            archiveArtifacts artifacts: 'version.txt', fingerprint: true
         }
         failure {
             echo "❌ Build Failed!"
