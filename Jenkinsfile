@@ -6,20 +6,19 @@ pipeline {
         stage('Process Environment Branches') {
             steps {
                 script {
-                    // List of branches
                     def branches = ['Development','QA','UAT','Production']
 
                     branches.each { branch ->
-                        // Use shell to silently fetch the branch
+                        // Quietly fetch & checkout branch
                         sh """
                         git fetch origin ${branch}:${branch} --quiet
                         git checkout ${branch} --quiet
                         """
 
-                        // Read JSON silently without logging SCM steps
+                        // Read JSON silently
                         def configFile = "appsettings.${branch}.json"
-                        if (fileExists(configFile)) {
-                            def jsonText = readFile(configFile)  // simple readFile, no extra logs
+                        if (new File(configFile).exists()) {
+                            def jsonText = new File(configFile).text
                             def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
                             def appName = json.AppSettings?.AppName ?: "N/A"
