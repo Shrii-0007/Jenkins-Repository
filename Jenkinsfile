@@ -16,33 +16,31 @@ pipeline {
                     for (branch in branches) {
                         echo "🌿 Processing Branch: ${branch}"
 
-                        // Checkout only the specific branch silently
-                        checkout([
-                            $class: 'GitSCM',
-                            branches: [[name: "*/${branch}"]],
-                            doGenerateSubmoduleConfigurations: false,
-                            extensions: [[$class: 'CloneOption', noTags: true, shallow: true, timeout: 10]],
-                            userRemoteConfigs: [[
-                                url: env.GIT_REPO,
-                                credentialsId: env.GIT_CREDENTIALS
-                            ]]
-                        ])
+                        // Use shell to fetch the appsettings JSON from Git without creating SCM steps in Blue Ocean
+                        sh """
+                            git fetch origin ${branch}:${branch} --quiet
+                            git checkout ${branch} --quiet
+                        """
 
+                        // Read JSON manually using Groovy
                         def configFile = "appsettings.${branch}.json"
+                        def appName = "N/A"
+                        def version = "N/A"
+                        def environmentName = "N/A"
+                        def extraVar = "N/A"
+
                         if (fileExists(configFile)) {
-                            def config = readJSON file: configFile
+                            def jsonText = readFile(configFile)
+                            def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
-                            def appName = config.AppSettings?.AppName ?: "N/A"
-                            def version = config.AppSettings?.Version ?: "N/A"
-                            def environment = config.AppSettings?.Environment ?: "N/A"
-                            def extraVar = config.AppSettings?.ExtraVar ?: "N/A"
-
-                            // ✅ Only this message will show on Blue Ocean
-                            echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environment}, ExtraVar: ${extraVar}"
-
-                        } else {
-                            echo "⚠ ${branch} → Config file not found"
+                            appName = json.AppSettings?.AppName ?: "N/A"
+                            version = json.AppSettings?.Version ?: "N/A"
+                            environmentName = json.AppSettings?.Environment ?: "N/A"
+                            extraVar = json.AppSettings?.ExtraVar ?: "N/A"
                         }
+
+                        // ✅ Only this message will show on Blue Ocean
+                        echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
                     }
                 }
             }
