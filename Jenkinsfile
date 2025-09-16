@@ -15,13 +15,14 @@ pipeline {
                                 <p>Hello Team,</p>
                                 <p>The build <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> requires approval.</p>
                                 <p>
-                                  <a href="${env.BUILD_URL}">Click here to review and approve</a>
+                                  <a href="${env.BUILD_URL}">Click here to review the build</a>
                                 </p>
                               </body>
                             </html>
                         """,
                         to: "spkute2020@gmail.com",
-                        mimeType: 'text/html'
+                        mimeType: 'text/html',
+                        debug: true   // 👈 will print SMTP session logs
                     )
                 }
             }
@@ -34,6 +35,14 @@ pipeline {
                         input message: "Do you approve this build?", ok: "Approve"
                     }
                 }
+            }
+        }
+
+        stage('Basic Mail Test (Fallback)') {
+            steps {
+                mail to: 'spkute2020@gmail.com',
+                     subject: "✅ Basic Test from Pipeline",
+                     body: "If you receive this mail, Jenkins pipeline mailer is working."
             }
         }
 
@@ -80,37 +89,7 @@ pipeline {
     }
 
     post {
-        success {
-            emailext(
-                subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """
-                    <html>
-                      <body>
-                        <h2>Build Completed Successfully</h2>
-                        <p>All branches processed after approval ✅</p>
-                        <p><a href="${env.BUILD_URL}">Click here for details</a></p>
-                      </body>
-                    </html>
-                """,
-                to: "spkute2020@gmail.com",
-                mimeType: 'text/html'
-            )
-        }
-        failure {
-            emailext(
-                subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """
-                    <html>
-                      <body>
-                        <h2>Build Failed</h2>
-                        <p>Please check logs for more details ⚠</p>
-                        <p><a href="${env.BUILD_URL}">Click here for logs</a></p>
-                      </body>
-                    </html>
-                """,
-                to: "spkute2020@gmail.com",
-                mimeType: 'text/html'
-            )
-        }
+        success { echo "✅ All environment branches processed successfully after approval." }
+        failure { echo "❌ Pipeline failed or was rejected." }
     }
 }
