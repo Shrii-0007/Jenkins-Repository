@@ -6,7 +6,7 @@ pipeline {
         stage('Approval Request') {
             steps {
                 emailext(
-                    to: 'shrikant.kute@cloverinfotech.com',
+                    to: 'sandeepr.mishra@cloverinfotech.com',
                     subject: "Approval Required: Jenkins Environment Processing",
                     body: """
                     Hi Shrikant,
