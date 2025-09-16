@@ -12,7 +12,6 @@ pipeline {
                     branches.each { branch ->
                         echo "🌿 Processing Branch: ${branch}"
 
-                        // Wrap all SCM/file operations in 'ansiColor' + 'sh script' with redirect to hide logs
                         dir("tmp_${branch}") {
                             try {
                                 // Quiet checkout of only JSON file
@@ -23,7 +22,9 @@ pipeline {
                                         url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
                                         credentialsId: 'Github-Credential'
                                     ]],
-                                    extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
+                                    extensions: [[$class: 'SparseCheckoutPaths',
+                                        sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]
+                                    ]
                                 ])
 
                                 // Read JSON quietly
@@ -37,7 +38,6 @@ pipeline {
 
                                 echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
                             } catch (Exception e) {
-                                // Silent skip if file or checkout fails
                                 echo "⚠ ${branch} → Config file not found or branch missing"
                             }
                         }
@@ -48,7 +48,24 @@ pipeline {
     }
 
     post {
-        success { echo "✅ All environment branches processed in order: Development → QA → UAT → Production" }
-        failure { echo "❌ Pipeline failed!" }
+        success {
+            echo "✅ All environment branches processed in order: Development → QA → UAT → Production"
+            emailext (
+                to: 'shrikant-devops@cloverinfotech.com',
+                subject: "✅ Jenkins Pipeline SUCCESS - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """<p>Good news 🎉</p>
+                         <p>Pipeline <b>${env.JOB_NAME}</b> build #${env.BUILD_NUMBER} completed successfully.</p>
+                         <p>Check Jenkins: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>"""
+            )
+        }
+        failure {
+            echo "❌ Pipeline failed!"
+            emailext (
+                to: 'team@mycompany.com',
+                subject: "❌ Jenkins Pipeline FAILED - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """<p>Pipeline <b>${env.JOB_NAME}</b> build #${env.BUILD_NUMBER} has failed.</p>
+                         <p>Check Jenkins logs: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>"""
+            )
+        }
     }
 }
