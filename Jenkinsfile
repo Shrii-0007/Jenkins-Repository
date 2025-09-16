@@ -2,37 +2,33 @@ pipeline {
     agent any
 
     stages {
-        stage('Approval Request') {
+        stage('Basic Mail Test') {
             steps {
-                script {
-                    emailext (
-                        to: 'spkut1919@gmail.com',
-                        subject: "🔔 Approval Required for Build #${env.BUILD_NUMBER}",
-                        body: """
-                            <h2>Build Approval Needed</h2>
-                            <p>Hello,</p>
-                            <p>Please review and approve the build:</p>
-                            <ul>
-                                <li>Job: ${env.JOB_NAME}</li>
-                                <li>Build: #${env.BUILD_NUMBER}</li>
-                                <li>URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></li>
-                            </ul>
-                            <p>Thanks,<br/>Jenkins</p>
-                        """,
-                        mimeType: 'text/html'
-                    )
-                }
+                emailext(
+                    to: 'spkute1919@gmail.com',
+                    subject: "✅ Pipeline Plain Mail Test - Job ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """Hello Team,
+
+This is a plain text test mail from Jenkins Pipeline.
+
+Job: ${env.JOB_NAME}
+Build: #${env.BUILD_NUMBER}
+URL: ${env.BUILD_URL}
+
+Regards,
+Jenkins
+"""
+                )
             }
         }
+    }
 
-        stage('Approval Decision') {
-            steps {
-                script {
-                    timeout(time: 30, unit: 'MINUTES') {
-                        input message: "Do you approve this build?", ok: "Approve"
-                    }
-                }
-            }
+    post {
+        success {
+            echo "✅ Mail stage executed successfully."
+        }
+        failure {
+            echo "❌ Mail stage failed."
         }
     }
 }
