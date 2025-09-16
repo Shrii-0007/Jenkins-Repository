@@ -3,21 +3,42 @@ pipeline {
     options { timestamps() }
 
     stages {
-        stage('Approval Before Processing') {
+        stage('Approval Request') {
+            steps {
+                emailext(
+                    to: 'spkute2020@gmail.com',
+                    subject: "Approval Required: Jenkins Environment Processing",
+                    body: """
+                    Hi Shrikant,
+
+                    A new pipeline run has started in Jenkins.
+
+                    Please review and approve/reject the run using the link below:
+
+                    ${env.BUILD_URL}
+
+                    Regards,  
+                    Jenkins
+                    """
+                )
+            }
+        }
+
+        stage('Approval Decision') {
             steps {
                 script {
-                    emailext (
-                        to: 'spkute2020@gmail.com',
-                        subject: "🔔 Approval Required - Jenkins Pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                        body: """<p>Hello,</p>
-                                 <p>Pipeline <b>${env.JOB_NAME}</b> build #${env.BUILD_NUMBER} is waiting for approval.</p>
-                                 <p>Please login to Jenkins and approve/reject the build.</p>
-                                 <p><a href="${env.BUILD_URL}input">Click here to approve</a></p>"""
+                    def userInput = input(
+                        id: 'EnvApproval',
+                        message: 'Manager Approval Required',
+                        parameters: [
+                            choice(name: 'Decision', choices: ['Approve', 'Reject'], description: 'Approve or Reject Environment Processing?')
+                        ]
                     )
 
-                    // Wait for manual approval inside Jenkins
-                    timeout(time: 1, unit: 'HOURS') {
-                        input message: "Do you approve to proceed with processing all environment branches?", ok: "Approve"
+                    if (userInput == 'Approve') {
+                        echo "✅ Approved! Proceeding with all environment branches..."
+                    } else {
+                        error("❌ Rejected by Manager! Pipeline stopped.")
                     }
                 }
             }
@@ -40,9 +61,10 @@ pipeline {
                                         url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
                                         credentialsId: 'Github-Credential'
                                     ]],
-                                    extensions: [[$class: 'SparseCheckoutPaths',
-                                        sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]
-                                    ]
+                                    extensions: [[
+                                        $class: 'SparseCheckoutPaths',
+                                        sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]
+                                    ]]
                                 ])
 
                                 def jsonText = readFile("appsettings.${branch}.json")
@@ -65,21 +87,7 @@ pipeline {
     }
 
     post {
-        success {
-            emailext (
-                to: 'spkute2020@gmail.com',
-                subject: "✅ Jenkins Pipeline SUCCESS - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """<p>Pipeline completed successfully.</p>
-                         <p>Check Jenkins: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>"""
-            )
-        }
-        failure {
-            emailext (
-                to: 'spkute2020@gmail.com',
-                subject: "❌ Jenkins Pipeline FAILED - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """<p>Pipeline failed.</p>
-                         <p>Check logs: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>"""
-            )
-        }
+        success { echo "✅ All environment branches processed successfully after approval." }
+        failure { echo "❌ Pipeline failed or was rejected." }
     }
 }
