@@ -2,47 +2,39 @@ pipeline {
     agent any
     options { timestamps() }
 
-    stage('Approval Request') {
-    steps {
-        emailext (
-            subject: "🔔 Approval Needed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-            body: """
-                <html>
-                  <body>
-                    <h3>Build Approval Required</h3>
-                    <p>Hello Team,</p>
-                    <p>The build <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> requires approval.</p>
-                    <p>
-                      <a href="${env.BUILD_URL}">Click here to review the build</a>
-                    </p>
-                  </body>
-                </html>
-            """,
-            to: "spkute2020@gmail.com",
-            mimeType: 'text/html'
-        )
-    }
-}
+        stage('Approval Request') {
+            steps {
+                emailext(
+                    subject: "🔔 Approval Needed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+                        <html>
+                          <body>
+                            <h2>Build Approval Required</h2>
+                            <p>Hello Team,</p>
+                            <p>The build <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> requires approval.</p>
+                            <p>
+                              <a href="${env.BUILD_URL}">Click here to review the build</a>
+                            </p>
+                          </body>
+                        </html>
+                    """,
+                    to: "spkute2020@gmail.com",
+                    mimeType: 'text/html'
+                )
+            }
+        }
 
         stage('Approval Decision') {
             steps {
                 script {
-                    def userInput = input(
-                        id: 'EnvApproval',
-                        message: 'Manager Approval Required',
-                        parameters: [
-                            choice(name: 'Decision', choices: ['Approve', 'Reject'], description: 'Approve or Reject Environment Processing?')
-                        ]
-                    )
-
-                    if (userInput == 'Approve') {
-                        echo "✅ Approved! Proceeding with all environment branches..."
-                    } else {
-                        error("❌ Rejected by Manager! Pipeline stopped.")
+                    timeout(time: 30, unit: 'MINUTES') {
+                        input message: "Do you approve this build?", ok: "Approve"
                     }
                 }
             }
         }
+     
+
 
         stage('Process All Environment Branches') {
             steps {
