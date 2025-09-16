@@ -2,27 +2,27 @@ pipeline {
     agent any
     options { timestamps() }
 
-    stages {
-        stage('Approval Request') {
-            steps {
-                emailext(
-                    to: 'sandeepr.mishra@cloverinfotech.com',
-                    subject: "Approval Required: Jenkins Environment Processing",
-                    body: """
-                    Hi Shrikant,
-
-                    A new pipeline run has started in Jenkins.
-
-                    Please review and approve/reject the run using the link below:
-
-                    ${env.BUILD_URL}
-
-                    Regards,  
-                    Jenkins
-                    """
-                )
-            }
-        }
+    stage('Approval Request') {
+    steps {
+        emailext (
+            subject: "🔔 Approval Needed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            body: """
+                <html>
+                  <body>
+                    <h3>Build Approval Required</h3>
+                    <p>Hello Team,</p>
+                    <p>The build <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> requires approval.</p>
+                    <p>
+                      <a href="${env.BUILD_URL}">Click here to review the build</a>
+                    </p>
+                  </body>
+                </html>
+            """,
+            to: "spkute2020@gmail.com",
+            mimeType: 'text/html'
+        )
+    }
+}
 
         stage('Approval Decision') {
             steps {
