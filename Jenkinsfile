@@ -24,7 +24,7 @@ pipeline {
                           </body>
                         </html>
                     """,
-                    to: "spkute2020@gmail.com",
+                    to: "spkute1919@gmail.com",
                     mimeType: 'text/html'
                 )
             }
