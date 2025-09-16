@@ -1,28 +1,25 @@
 pipeline {
     agent any
-    options { timestamps() }
 
     stages {
         stage('Approval Request') {
             steps {
                 script {
-                    emailext(
-                        subject: "🔔 Approval Needed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    emailext (
+                        to: 'spkut1919@gmail.com',
+                        subject: "🔔 Approval Required for Build #${env.BUILD_NUMBER}",
                         body: """
-                            <html>
-                              <body>
-                                <h2>Build Approval Required</h2>
-                                <p>Hello Team,</p>
-                                <p>The build <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> requires approval.</p>
-                                <p>
-                                  <a href="${env.BUILD_URL}">Click here to review the build</a>
-                                </p>
-                              </body>
-                            </html>
+                            <h2>Build Approval Needed</h2>
+                            <p>Hello,</p>
+                            <p>Please review and approve the build:</p>
+                            <ul>
+                                <li>Job: ${env.JOB_NAME}</li>
+                                <li>Build: #${env.BUILD_NUMBER}</li>
+                                <li>URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></li>
+                            </ul>
+                            <p>Thanks,<br/>Jenkins</p>
                         """,
-                        to: "spkute2020@gmail.com",
-                        mimeType: 'text/html',
-                        debug: true   // 👈 will print SMTP session logs
+                        mimeType: 'text/html'
                     )
                 }
             }
@@ -37,59 +34,5 @@ pipeline {
                 }
             }
         }
-
-        stage('Basic Mail Test (Fallback)') {
-            steps {
-                mail to: 'spkute2020@gmail.com',
-                     subject: "✅ Basic Test from Pipeline",
-                     body: "If you receive this mail, Jenkins pipeline mailer is working."
-            }
-        }
-
-        stage('Process All Environment Branches') {
-            steps {
-                script {
-                    def branches = ['Development', 'QA', 'UAT', 'Production']
-
-                    branches.each { branch ->
-                        echo "🌿 Processing Branch: ${branch}"
-
-                        dir("tmp_${branch}") {
-                            try {
-                                checkout([
-                                    $class: 'GitSCM',
-                                    branches: [[name: "origin/${branch}"]],
-                                    userRemoteConfigs: [[
-                                        url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
-                                        credentialsId: 'Github-Credential'
-                                    ]],
-                                    extensions: [[
-                                        $class: 'SparseCheckoutPaths',
-                                        sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]
-                                    ]]
-                                ])
-
-                                def jsonText = readFile("appsettings.${branch}.json")
-                                def json = new groovy.json.JsonSlurper().parseText(jsonText)
-
-                                def appName = json.AppSettings?.AppName ?: "N/A"
-                                def version = json.AppSettings?.Version ?: "N/A"
-                                def environmentName = json.AppSettings?.Environment ?: "N/A"
-                                def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
-
-                                echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
-                            } catch (Exception e) {
-                                echo "⚠ ${branch} → Config file not found or branch missing"
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        success { echo "✅ All environment branches processed successfully after approval." }
-        failure { echo "❌ Pipeline failed or was rejected." }
     }
 }
