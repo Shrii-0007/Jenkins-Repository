@@ -2,19 +2,25 @@ pipeline {
     agent any
     options { timestamps() }
 
+    stages {
         stage('Approval Request') {
             steps {
                 emailext(
                     subject: "🔔 Approval Needed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                     body: """
                         <html>
-                          <body>
-                            <h2>Build Approval Required</h2>
+                          <body style="font-family: Arial, sans-serif; color: #333;">
+                            <h2 style="color:#2E86C1;">Build Approval Required</h2>
                             <p>Hello Team,</p>
-                            <p>The build <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> requires approval.</p>
                             <p>
-                              <a href="${env.BUILD_URL}">Click here to review the build</a>
+                              The build <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> requires your approval before it can continue.
                             </p>
+                            <p>
+                              <a href="${env.BUILD_URL}" style="background:#2E86C1; color:#fff; padding:10px 15px; text-decoration:none; border-radius:5px;">
+                                🔗 Review Build
+                              </a>
+                            </p>
+                            <p>Thanks,<br/>Jenkins CI/CD</p>
                           </body>
                         </html>
                     """,
@@ -33,8 +39,6 @@ pipeline {
                 }
             }
         }
-     
-
 
         stage('Process All Environment Branches') {
             steps {
