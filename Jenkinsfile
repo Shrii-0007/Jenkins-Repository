@@ -3,38 +3,43 @@ pipeline {
     options { timestamps() }
 
     stages {
-        stage('Process Environment Branches') {
+        stage('Process All Environment Branches') {
             steps {
                 script {
-                    // Define your environment branches
+                    // Branches in order
                     def branches = ['Development', 'QA', 'UAT', 'Production']
 
                     branches.each { branch ->
                         echo "🌿 Processing Branch: ${branch}"
 
-                        // Fetch and checkout branch silently
-                        sh """
-                            git fetch origin ${branch}:${branch} --quiet || true
-                            git checkout ${branch} --quiet || true
-                        """
+                        // Wrap all SCM/file operations in 'ansiColor' + 'sh script' with redirect to hide logs
+                        dir("tmp_${branch}") {
+                            try {
+                                // Quiet checkout of only JSON file
+                                checkout([
+                                    $class: 'GitSCM',
+                                    branches: [[name: "origin/${branch}"]],
+                                    userRemoteConfigs: [[
+                                        url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                                        credentialsId: 'Github-Credential'
+                                    ]],
+                                    extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
+                                ])
 
-                        // Check for env file (json/properties)
-                        if (fileExists("appsettings.${branch}.json")) {
-                            def jsonText = readFile("appsettings.${branch}.json")
-                            def json = new groovy.json.JsonSlurper().parseText(jsonText)
+                                // Read JSON quietly
+                                def jsonText = readFile("appsettings.${branch}.json")
+                                def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
-                            def appName = json.AppSettings?.AppName ?: "N/A"
-                            def version = json.AppSettings?.Version ?: "N/A"
-                            def environmentName = json.AppSettings?.Environment ?: "N/A"
-                            def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
+                                def appName = json.AppSettings?.AppName ?: "N/A"
+                                def version = json.AppSettings?.Version ?: "N/A"
+                                def environmentName = json.AppSettings?.Environment ?: "N/A"
+                                def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
 
-                            echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
-                        } else if (fileExists("src/main/resources/application-${branch.toLowerCase()}.properties")) {
-                            // For Java Spring Boot projects
-                            def props = readProperties(file: "src/main/resources/application-${branch.toLowerCase()}.properties")
-                            echo "✅ ${branch} → AppName: ${props['app.name']}, Version: ${props['app.version']}, Env: ${props['app.environment']}, ExtraVar: ${props['app.extraVar']}"
-                        } else {
-                            echo "⚠ ${branch} → No config file found!"
+                                echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
+                            } catch (Exception e) {
+                                // Silent skip if file or checkout fails
+                                echo "⚠ ${branch} → Config file not found or branch missing"
+                            }
                         }
                     }
                 }
@@ -43,11 +48,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "✅ All environment branches processed!"
-        }
-        failure {
-            echo "❌ Pipeline failed!"
-        }
+        success { echo "✅ All environment branches processed in order: Development → QA → UAT → Production" }
+        failure { echo "❌ Pipeline failed!" }
     }
 }
