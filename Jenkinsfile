@@ -31,21 +31,21 @@ pipeline {
                                 def jsonText = readFile("appsettings.${branch}.json")
                                 def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
-                                // Iterate over settings for this branch
-                                def branchResults = []
+                                // Collect results branch-wise
+                                def branchBlock = []
                                 json.AppSettings.each { setting ->
                                     setting.Settings.each { s ->
                                         def sqlConnection = s.Dev_MySql_Connection_String ?: "N/A"
                                         def logging = s.Logging ?: "N/A"
-
-                                        def result = "✅ ${branch} → SQL Connection: ${sqlConnection}, Logging: ${logging}"
-                                        echo result            // Branch-wise output
-                                        branchResults << result // Collect for summary
+                                        branchBlock << "   • SQL Connection: ${sqlConnection}, Logging: ${logging}"
                                     }
                                 }
 
-                                // Add to final summary
-                                summary += branchResults
+                                // Print grouped output for this branch
+                                echo "✅ ${branch} =>\n" + branchBlock.join("\n")
+
+                                // Add to summary
+                                summary << "📂 ${branch} Results:\n" + branchBlock.join("\n")
 
                             } catch (Exception e) {
                                 def errorMsg = "⚠ ${branch} → Config file not found or branch missing"
@@ -55,8 +55,8 @@ pipeline {
                         }
                     }
 
-                    // Print combined clean output at once (final summary)
-                    echo "\n📊 Final Summary:\n" + summary.join("\n")
+                    // Print final summary
+                    echo "\n📊 Final Summary (All Branches):\n" + summary.join("\n\n")
                 }
             }
         }
