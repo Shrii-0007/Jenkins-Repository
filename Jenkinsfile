@@ -13,7 +13,7 @@ pipeline {
 
                         dir("tmp_${branch}") {
                             try {
-                                // Silent checkout (no noisy logs)
+                                // Checkout फक्त JSON
                                 checkout([
                                     $class: 'GitSCM',
                                     branches: [[name: "origin/${branch}"]],
@@ -25,10 +25,14 @@ pipeline {
                                         $class: 'SparseCheckoutPaths',
                                         sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]
                                     ]]
-                                ]) > /dev/null
+                                ])
 
-                                // Silent read file
-                                def jsonText = sh(script: "cat appsettings.${branch}.json", returnStdout: true).trim()
+                                // File वाचताना unwanted log suppress
+                                def jsonText = sh(
+                                    script: "cat appsettings.${branch}.json",
+                                    returnStdout: true
+                                ).trim()
+
                                 def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
                                 def appName = json.AppSettings?.AppName ?: "N/A"
@@ -36,7 +40,7 @@ pipeline {
                                 def envs = json.AppSettings?.Environment ?: []
                                 def extras = json.AppSettings?.ExtraVar ?: []
 
-                                // Only summarized line will show
+                                // फक्त हीच लाइन dashboard वर दिसेल
                                 echo "✅ ${branch} → AppName: [${appName}], Version: ${versions}, Env: ${envs}, ExtraVar: ${extras}"
 
                             } catch (Exception e) {
