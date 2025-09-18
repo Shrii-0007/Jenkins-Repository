@@ -5,52 +5,58 @@ pipeline {
     stages {
         stage('Process All Environment Branches') {
             steps {
-                // Checkout happens once only, so Blue Ocean shows single tab
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: "*/main"]], // or your default branch
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
-                        credentialsId: 'Github-Credential'
-                    ]]
-                ])
-
                 script {
+                    // Branches in order
                     def branches = ['Development', 'QA', 'UAT', 'Production']
                     def summary = []
 
                     branches.each { branch ->
                         echo "🌿 Processing Branch: ${branch}"
 
-                        try {
-                            // Read JSON directly from workspace (no extra tab)
-                            def jsonText = readFile("appsettings.${branch}.json")
-                            def json = new groovy.json.JsonSlurper().parseText(jsonText)
+                        dir("tmp_${branch}") {
+                            try {
+                                // Run checkout in shell to avoid Blue Ocean tabs
+                                sh """
+                                    git init
+                                    git remote add origin https://github.com/Shrii-0007/Jenkins-Repository.git || true
+                                    git fetch --depth=1 origin ${branch}
+                                    git checkout FETCH_HEAD
+                                """
 
-                            def branchBlock = []
-                            json.AppSettings.each { setting ->
-                                setting.Settings.each { s ->
-                                    def sqlConnection = s.Dev_MySql_Connection_String ?: "N/A"
-                                    def logging = s.Logging ?: "N/A"
-                                    branchBlock << "• SQL Connection: ${sqlConnection}, Logging: ${logging}"
+                                // Read JSON with shell & Groovy (no 'readFile' tab)
+                                def jsonText = sh(
+                                    script: "cat appsettings.${branch}.json",
+                                    returnStdout: true
+                                ).trim()
+
+                                def json = new groovy.json.JsonSlurper().parseText(jsonText)
+
+                                // Collect results branch-wise
+                                def branchBlock = []
+                                json.AppSettings.each { setting ->
+                                    setting.Settings.each { s ->
+                                        def sqlConnection = s.Dev_MySql_Connection_String ?: "N/A"
+                                        def logging = s.Logging ?: "N/A"
+                                        branchBlock << "   • SQL Connection: ${sqlConnection}, Logging: ${logging}"
+                                    }
                                 }
+
+                                // Print grouped output
+                                echo "✅ ${branch} =>\n" + branchBlock.join("\n")
+
+                                // Add to summary
+                                summary << "📂 ${branch} Results:\n" + branchBlock.join("\n")
+
+                            } catch (Exception e) {
+                                def errorMsg = "⚠ ${branch} → Config file not found or branch missing"
+                                echo errorMsg
+                                summary << errorMsg
                             }
-
-                            // Branch-wise output in single block
-                            echo "✅ ${branch} => " + branchBlock.join(" ")
-
-                            // Add to summary
-                            summary << "📂 ${branch} Results: " + branchBlock.join(" ")
-                        }
-                        catch (Exception e) {
-                            def errorMsg = "⚠ ${branch} → Config file not found or invalid"
-                            echo errorMsg
-                            summary << errorMsg
                         }
                     }
 
-                    // Final summary
-                    echo "📊 Final Summary (All Branches):" + summary.join("")
+                    // Print final summary
+                    echo "\n📊 Final Summary (All Branches):\n" + summary.join("\n\n")
                 }
             }
         }
