@@ -13,25 +13,34 @@ pipeline {
 
                         dir("tmp_${branch}") {
                             try {
-                                // SCM checkout logs hide करण्यासाठी redirect
-                                sh(script: """
-                                    git init -q
-                                    git remote add origin https://github.com/Shrii-0007/Jenkins-Repository.git
-                                    git fetch --depth 1 origin ${branch} -q
-                                    git checkout FETCH_HEAD -q
-                                """, returnStdout: true)
+                                // Checkout only the required JSON file silently
+                                checkout([
+                                    $class: 'GitSCM',
+                                    branches: [[name: "origin/${branch}"]],
+                                    userRemoteConfigs: [[
+                                        url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                                        credentialsId: 'Github-Credential'
+                                    ]],
+                                    extensions: [
+                                        [$class: 'SparseCheckoutPaths',
+                                         sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]],
+                                        [$class: 'CloneOption',
+                                         shallow: true, depth: 1, noTags: true, timeout: 5]
+                                    ]
+                                ])
 
-                                // फक्त appsettings file read
-                                def jsonText = readFile("appsettings.${branch}.json")
+                                // Read the JSON file
+                                def jsonText = readFile("appsettings.${branch}.json").trim()
                                 def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
                                 def appName = json.AppSettings?.AppName ?: "N/A"
-                                def version = json.AppSettings?.Version ?: "N/A"
-                                def environmentName = json.AppSettings?.Environment ?: "N/A"
-                                def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
+                                def versions = json.AppSettings?.Version ?: []
+                                def envs = json.AppSettings?.Environment ?: []
+                                def extras = json.AppSettings?.ExtraVar ?: []
 
-                                // Dashboard वर फक्त हीच लाइन दिसेल
-                                echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
+                                // Print only clean output for dashboards
+                                echo "✅ ${branch} → AppName: ${appName}, Version: ${versions}, Env: ${envs}, ExtraVar: ${extras}"
+
                             } catch (Exception e) {
                                 echo "⚠ ${branch} → Config file not found or branch missing"
                             }
@@ -43,7 +52,7 @@ pipeline {
     }
 
     post {
-        success { echo "✅ All environment branches processed successfully!" }
+        success { echo "✅ All environment branches processed successfully (Development → QA → UAT → Production)" }
         failure { echo "❌ Pipeline failed!" }
     }
 }
