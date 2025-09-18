@@ -1,23 +1,35 @@
 pipeline {
     agent any
     options { 
-        timestamps() 
-        skipDefaultCheckout() // ✅ Prevent root checkout to reduce noise
+        timestamps()
+        skipDefaultCheckout()
     }
 
     stages {
-        stage('Process All Environment Branches') {
+        stage('Discover and Process Environment Branches') {
             steps {
                 script {
-                    def branches = ['Development', 'QA', 'UAT', 'Production']
-                    def summary = [:] // To store final summary for all branches
+                    // 1️⃣ Fetch all remote branches
+                    def remoteBranches = sh(
+                        script: 'git ls-remote --heads https://github.com/Shrii-0007/Jenkins-Repository.git',
+                        returnStdout: true
+                    ).trim().split("\n")
+                     .collect { it.split()[1].replace('refs/heads/', '') }
 
-                    branches.each { branch ->
+                    echo "🌿 Remote branches found: ${remoteBranches}"
+
+                    // 2️⃣ Filter only environment branches (optional: regex)
+                    def envBranches = remoteBranches.findAll { it =~ /^(Development|QA|UAT|Production)$/ }
+
+                    def summary = [:]
+
+                    // 3️⃣ Process each branch
+                    envBranches.each { branch ->
                         echo "🌿 Processing Branch: ${branch}"
 
                         dir("tmp_${branch}") {
                             try {
-                                // ✅ Sparse checkout only the environment JSON file
+                                // Checkout only the JSON file
                                 checkout([
                                     $class: 'GitSCM',
                                     branches: [[name: "origin/${branch}"]],
@@ -27,32 +39,29 @@ pipeline {
                                     ]],
                                     extensions: [
                                         [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]],
-                                        [$class: 'WipeWorkspace'] // Clean folder before checkout
+                                        [$class: 'WipeWorkspace']
                                     ]
                                 ])
 
-                                // ✅ Read JSON quietly
+                                // Read JSON file
                                 def jsonText = sh(script: "cat appsettings.${branch}.json", returnStdout: true).trim()
                                 def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
-                                // Extract important fields
                                 def appName = json.AppSettings?.AppName ?: "N/A"
                                 def version = json.AppSettings?.Version ?: "N/A"
-                                def environmentName = json.AppSettings?.Environment ?: "N/A"
+                                def environmentName = json.AppSettings?.Environment ?: branch
                                 def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
 
-                                // Store in summary
                                 summary[branch] = [AppName: appName, Version: version, Environment: environmentName, ExtraVar: extraVar]
 
-                                // ✅ Clean echo per branch
                                 echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
                             } catch (Exception e) {
-                                echo "⚠ ${branch} → Config file not found or branch missing"
+                                echo "⚠ ${branch} → Config file missing or branch issue"
                             }
                         }
                     }
 
-                    // ✅ Final consolidated summary for all branches
+                    // 4️⃣ Print final summary
                     echo "\n📊 Final Summary (All Branches):"
                     summary.each { br, vals ->
                         echo "📂 ${br}: AppName=${vals.AppName}, Version=${vals.Version}, Env=${vals.Environment}, ExtraVar=${vals.ExtraVar}"
@@ -63,11 +72,11 @@ pipeline {
     }
 
     post {
-        success { 
-            echo "✅ All environment branches processed in order: Development → QA → UAT → Production" 
+        success {
+            echo "✅ All environment branches processed dynamically"
         }
-        failure { 
-            echo "❌ Pipeline failed!" 
+        failure {
+            echo "❌ Pipeline failed!"
         }
     }
 }
