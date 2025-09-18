@@ -6,6 +6,23 @@ pipeline {
         stage('Process All Environment Branches') {
             steps {
                 script {
+                    // Helper: quiet checkout (no logs)
+                    def quietCheckout = { branch, path ->
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "origin/${branch}"]],
+                            userRemoteConfigs: [[
+                                url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                                credentialsId: 'Github-Credential'
+                            ]],
+                            extensions: [
+                                [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: path]]],
+                                [$class: 'CloneOption', noTags: true, shallow: true, depth: 1]
+                            ]
+                        ])
+                    }
+
+                    // Branches in order
                     def branches = ['Development', 'QA', 'UAT', 'Production']
 
                     branches.each { branch ->
@@ -13,37 +30,22 @@ pipeline {
 
                         dir("tmp_${branch}") {
                             try {
-                                // Checkout फक्त JSON
-                                checkout([
-                                    $class: 'GitSCM',
-                                    branches: [[name: "origin/${branch}"]],
-                                    userRemoteConfigs: [[
-                                        url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
-                                        credentialsId: 'Github-Credential'
-                                    ]],
-                                    extensions: [[
-                                        $class: 'SparseCheckoutPaths',
-                                        sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]
-                                    ]]
-                                ])
+                                // Silent checkout of only JSON file
+                                quietCheckout(branch, "appsettings.${branch}.json")
 
-                                // File वाचताना unwanted log suppress
-                                def jsonText = sh(
-                                    script: "cat appsettings.${branch}.json",
-                                    returnStdout: true
-                                ).trim()
-
+                                // Read JSON quietly (no cat output)
+                                def jsonText = readFile("appsettings.${branch}.json")
                                 def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
                                 def appName = json.AppSettings?.AppName ?: "N/A"
-                                def versions = json.AppSettings?.Version ?: []
-                                def envs = json.AppSettings?.Environment ?: []
-                                def extras = json.AppSettings?.ExtraVar ?: []
+                                def version = json.AppSettings?.Version ?: "N/A"
+                                def environmentName = json.AppSettings?.Environment ?: "N/A"
+                                def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
 
-                                // फक्त हीच लाइन dashboard वर दिसेल
-                                echo "✅ ${branch} → AppName: [${appName}], Version: ${versions}, Env: ${envs}, ExtraVar: ${extras}"
-
+                                // Only clean output shown on dashboard
+                                echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
                             } catch (Exception e) {
+                                // Silent skip if file or checkout fails
                                 echo "⚠ ${branch} → Config file not found or branch missing"
                             }
                         }
@@ -54,7 +56,11 @@ pipeline {
     }
 
     post {
-        success { echo "✅ All environment branches processed in order: Development → QA → UAT → Production" }
-        failure { echo "❌ Pipeline failed!" }
+        success {
+            echo "✅ All environment branches processed in order: Development → QA → UAT → Production"
+        }
+        failure {
+            echo "❌ Pipeline failed!"
+        }
     }
 }
