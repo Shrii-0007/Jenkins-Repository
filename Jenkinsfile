@@ -15,7 +15,7 @@ pipeline {
 
                         dir("tmp_${branch}") {
                             try {
-                                // Checkout only the JSON file (hidden from Blue Ocean as step noise)
+                                // Checkout only the JSON file
                                 checkout([
                                     $class: 'GitSCM',
                                     branches: [[name: "origin/${branch}"]],
@@ -31,25 +31,32 @@ pipeline {
                                 def jsonText = readFile("appsettings.${branch}.json")
                                 def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
-                                // Iterate over settings
+                                // Iterate over settings for this branch
+                                def branchResults = []
                                 json.AppSettings.each { setting ->
                                     setting.Settings.each { s ->
                                         def sqlConnection = s.Dev_MySql_Connection_String ?: "N/A"
                                         def logging = s.Logging ?: "N/A"
 
-                                        // Collect result instead of echoing directly
-                                        summary << "✅ ${branch} → SQL Connection: ${sqlConnection}, Logging: ${logging}"
+                                        def result = "✅ ${branch} → SQL Connection: ${sqlConnection}, Logging: ${logging}"
+                                        echo result            // Branch-wise output
+                                        branchResults << result // Collect for summary
                                     }
                                 }
 
+                                // Add to final summary
+                                summary += branchResults
+
                             } catch (Exception e) {
-                                summary << "⚠ ${branch} → Config file not found or branch missing"
+                                def errorMsg = "⚠ ${branch} → Config file not found or branch missing"
+                                echo errorMsg
+                                summary << errorMsg
                             }
                         }
                     }
 
-                    // Print combined clean output at once
-                    echo "📊 Final Summary:\n" + summary.join("\n")
+                    // Print combined clean output at once (final summary)
+                    echo "\n📊 Final Summary:\n" + summary.join("\n")
                 }
             }
         }
