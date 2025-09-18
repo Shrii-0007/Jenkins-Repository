@@ -14,7 +14,7 @@ pipeline {
 
                         dir("tmp_${branch}") {
                             try {
-                                // Quiet checkout of only JSON file
+                                // Checkout only the JSON file
                                 checkout([
                                     $class: 'GitSCM',
                                     branches: [[name: "origin/${branch}"]],
@@ -25,23 +25,21 @@ pipeline {
                                     extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
                                 ])
 
-                                // Read JSON quietly
+                                // Read JSON file
                                 def jsonText = readFile("appsettings.${branch}.json")
                                 def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
-                                // Iterate over AppSettings array
+                                // Iterate over AppSettings array and all Settings objects
                                 json.AppSettings.each { setting ->
-                                    def appName = setting.AppName ?: "N/A"
-                                    def version = setting.Settings[0]?.Version ?: "N/A"
-                                    def extraVar = setting.Settings[0]?.ExtraVar ?: "N/A"
-                                    def sqlConnection = setting.Settings[0]?.Dev_MySql_Connection_String ?: "N/A"
-                                    def logging = setting.Settings[0]?.Logging ?: "N/A"
+                                    setting.Settings.each { s ->
+                                        def sqlConnection = s.Dev_MySql_Connection_String ?: "N/A"
+                                        def logging = s.Logging ?: "N/A"
 
-                                    echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, ExtraVar: ${extraVar}, SQL: ${sqlConnection}, Logging: ${logging}"
+                                        echo "✅ ${branch} → SQL Connection: ${sqlConnection}, Logging: ${logging}"
+                                    }
                                 }
 
                             } catch (Exception e) {
-                                // Silent skip if file or checkout fails
                                 echo "⚠ ${branch} → Config file not found or branch missing"
                             }
                         }
