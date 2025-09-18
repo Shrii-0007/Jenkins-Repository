@@ -3,18 +3,15 @@ pipeline {
     options { timestamps() }
 
     stages {
-        stage('Process All Environment Branches') {
+        stage('Branchwise Dashboard Data') {
             steps {
                 script {
-                    // Define branches
                     def branches = ['Development', 'QA', 'UAT', 'Production']
 
                     branches.each { branch ->
-                        echo "🌿 Processing Branch: ${branch}"
-
                         dir("tmp_${branch}") {
                             try {
-                                // Clean checkout with no Git noise
+                                // Checkout only required config file
                                 sh """
                                   rm -rf .git > /dev/null 2>&1 || true
                                   git init -q .
@@ -24,34 +21,29 @@ pipeline {
                                 """
 
                                 // Read JSON
-                                def jsonText = readFile("appsettings.${branch}.json")
-                                def json = new groovy.json.JsonSlurper().parseText(jsonText)
+                                def json = new groovy.json.JsonSlurper().parseText(
+                                    readFile("appsettings.${branch}.json")
+                                )
 
-                                // Extract values
-                                def appName = json.AppSettings?.AppName ?: "N/A"
+                                // Extract only required fields
                                 def versions = json.AppSettings?.Version ?: []
                                 def envs = json.AppSettings?.Environment ?: []
                                 def extras = json.AppSettings?.ExtraVar ?: []
 
-                                // Final clean output to dashboard
-                                echo "✅ ${branch} → AppName: [${appName}], Versions: ${versions}, Envs: ${envs}, ExtraVars: ${extras}"
+                                // 🎯 Final clean output (only what you want)
+                                echo "📌 Branch: ${branch}"
+                                echo "   Versions   : ${versions}"
+                                echo "   Environments: ${envs}"
+                                echo "   Variables  : ${extras}"
+                                echo "----------------------------------------"
 
                             } catch (Exception e) {
-                                echo "⚠ ${branch} → Config file not found or branch missing"
+                                echo "⚠ ${branch} → config not found"
                             }
                         }
                     }
                 }
             }
-        }
-    }
-
-    post {
-        success {
-            echo "✅ All environment branches processed: Development → QA → UAT → Production"
-        }
-        failure {
-            echo "❌ Pipeline failed!"
         }
     }
 }
