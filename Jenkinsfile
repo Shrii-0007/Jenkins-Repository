@@ -3,15 +3,19 @@ pipeline {
     options { timestamps() }
 
     stages {
-        stage('Branchwise Dashboard Data') {
+        stage('Process All Environment Branches') {
             steps {
                 script {
+                    // Branches in order
                     def branches = ['Development', 'QA', 'UAT', 'Production']
 
                     branches.each { branch ->
+                        echo "🌿 Processing Branch: ${branch}"
+
+                        // Wrap all SCM/file operations in 'ansiColor' + 'sh script' with redirect to hide logs
                         dir("tmp_${branch}") {
                             try {
-                                // Silent checkout (no big git logs)
+                                // Quiet checkout of only JSON file
                                 checkout([
                                     $class: 'GitSCM',
                                     branches: [[name: "origin/${branch}"]],
@@ -19,37 +23,32 @@ pipeline {
                                         url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
                                         credentialsId: 'Github-Credential'
                                     ]],
-                                    extensions: [
-                                        [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]],
-                                        [$class: 'CloneOption', shallow: true, depth: 1, noTags: true, reference: '', timeout: 10, quiet: true]
-                                    ]
+                                    extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
                                 ])
 
-                                // Read JSON file without printing it
-                                def json = new groovy.json.JsonSlurper().parseText(
-                                    readFile("appsettings.${branch}.json")
-                                )
+                                // Read JSON quietly
+                                def jsonText = readFile("appsettings.${branch}.json")
+                                def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
-                                def versions = json.AppSettings?.Version ?: "N/A"
-                                def envs     = json.AppSettings?.Environment ?: "N/A"
-                                def extras   = json.AppSettings?.ExtraVar ?: "N/A"
+                                def appName = json.AppSettings?.AppName ?: "N/A"
+                                def version = json.AppSettings?.Version ?: "N/A"
+                                def environmentName = json.AppSettings?.Environment ?: "N/A"
+                                def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
 
-                                // 🎯 Only clean block will be shown in Jenkins dashboard
-                                echo """
-----------------------------------------
-📌 Branch: ${branch}
-   Environment : ${envs}
-   Version     : ${versions}
-   Variables   : ${extras}
-----------------------------------------
-"""
+                                echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
                             } catch (Exception e) {
-                                echo "⚠ ${branch} → config not found"
+                                // Silent skip if file or checkout fails
+                                echo "⚠ ${branch} → Config file not found or branch missing"
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    post {
+        success { echo "✅ All environment branches processed in order: Development → QA → UAT → Production" }
+        failure { echo "❌ Pipeline failed!" }
     }
 }
