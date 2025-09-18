@@ -43,7 +43,7 @@ pipeline {
                                     }
                                 }
 
-                                // Print branch output like your requested style
+                                // Print branch output immediately
                                 echo "✅ ${branch} => \n\t• ${branchSummary.join("\n\t• ")}"
 
                                 // Save for final summary
@@ -56,13 +56,18 @@ pipeline {
                         }
                     }
 
-                    // Final Summary for all branches
-                    echo "\n📊 Final Summary (All Branches):"
-                    allSummaries.each { br, vals ->
-                        echo "📂 ${br} Results:\n\t• ${vals.join("\n\t• ")}"
+                    // Print clean final summary like requested
+                    echo "\n📊 Final Summary (All Branches):\n"
+
+                    branches.each { branch ->
+                        echo "📂 ${branch} Results:\n"
+                        allSummaries[branch].each { val ->
+                            echo "\t• ${val}"
+                        }
+                        echo "\n"  // Add empty line between branches
                     }
 
-                    echo "\n✅ All environment branches processed in order: Development → QA → UAT → Production"
+                    echo "✅ All environment branches processed in order: Development → QA → UAT → Production"
                 }
             }
         }
