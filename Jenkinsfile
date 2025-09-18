@@ -16,6 +16,7 @@ pipeline {
 
                         dir("tmp_${branch}") {
                             try {
+                                // Checkout only the JSON file
                                 checkout([
                                     $class: 'GitSCM',
                                     branches: [[name: "origin/${branch}"]],
@@ -31,6 +32,7 @@ pipeline {
 
                                 def branchSummary = []
 
+                                // Process each setting in JSON
                                 json.AppSettings.each { app ->
                                     app.Settings.each { s ->
                                         def sqlConn = s.Dev_MySql_Connection_String ?: "N/A"
@@ -39,10 +41,14 @@ pipeline {
                                     }
                                 }
 
+                                // **Echo immediately per branch** like before
+                                echo "✅ ${branch} => \n\t• ${branchSummary.join("\n\t• ")}"
+
                                 // Store for final summary
                                 allSummaries[branch] = branchSummary
 
                             } catch (Exception e) {
+                                echo "⚠ ${branch} → Config file not found or branch missing"
                                 allSummaries[branch] = ["Config missing"]
                             }
                         }
@@ -57,7 +63,7 @@ pipeline {
                         }
                     }
 
-                    // Echo **once** for clean log output
+                    // **Echo final summary once**
                     echo finalSummary
 
                     echo "✅ All environment branches processed in order: Development → QA → UAT → Production"
