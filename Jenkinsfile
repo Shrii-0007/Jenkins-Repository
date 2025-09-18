@@ -16,7 +16,7 @@ pipeline {
 
                         dir("tmp_${branch}") {
                             try {
-                                // Checkout only the JSON file for this branch
+                                // Checkout only appsettings.<branch>.json
                                 checkout([
                                     $class: 'GitSCM',
                                     branches: [[name: "origin/${branch}"]],
@@ -28,7 +28,7 @@ pipeline {
                                                   sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
                                 ])
 
-                                // Parse the JSON
+                                // Read and parse JSON
                                 def jsonText = readFile("appsettings.${branch}.json")
                                 def json = new JsonSlurper().parseText(jsonText)
 
@@ -41,28 +41,21 @@ pipeline {
                                     }
                                 }
 
-                                // Print branch results in exact format
-                                echo "✅ ${branch} =>"
-                                envs.each { envLine ->
-                                    echo "    • ${envLine}"
-                                }
+                                // Print branch output in your style
+                                echo "✅ ${branch} => • ${envs.join(' • ')}"
 
                                 summary[branch] = envs
 
                             } catch (Exception e) {
-                                echo "⚠ ${branch} → Config file not found or error: ${e.message}"
+                                echo "⚠ ${branch} → Config file not found or branch missing"
                             }
                         }
                     }
 
-                    // Final summary
+                    // Final Summary
                     echo "📊 Final Summary (All Branches):"
                     summary.each { br, vals ->
-                        echo "📂 ${br} Results:"
-                        vals.each { envLine ->
-                            echo "    • ${envLine}"
-                        }
-                        echo ""
+                        echo "📂 ${br} Results: • ${vals.join(' • ')}"
                     }
 
                     echo "✅ All environment branches processed in order: Development → QA → UAT → Production"
