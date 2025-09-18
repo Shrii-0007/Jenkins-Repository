@@ -8,7 +8,6 @@ pipeline {
         stage('Process All Environment Branches') {
             steps {
                 script {
-                    // Branches in order
                     def branches = ['Development', 'QA', 'UAT', 'Production']
                     def allSummaries = [:]  // Store summary of all branches
 
@@ -17,7 +16,6 @@ pipeline {
 
                         dir("tmp_${branch}") {
                             try {
-                                // Checkout only the JSON file
                                 checkout([
                                     $class: 'GitSCM',
                                     branches: [[name: "origin/${branch}"]],
@@ -28,13 +26,11 @@ pipeline {
                                     extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
                                 ])
 
-                                // Read and parse JSON
                                 def jsonText = readFile("appsettings.${branch}.json")
                                 def json = new JsonSlurper().parseText(jsonText)
 
                                 def branchSummary = []
 
-                                // Loop through AppSettings array in JSON
                                 json.AppSettings.each { app ->
                                     app.Settings.each { s ->
                                         def sqlConn = s.Dev_MySql_Connection_String ?: "N/A"
@@ -43,29 +39,26 @@ pipeline {
                                     }
                                 }
 
-                                // Print branch output immediately
-                                echo "✅ ${branch} => \n\t• ${branchSummary.join("\n\t• ")}"
-
-                                // Save for final summary
+                                // Store for final summary
                                 allSummaries[branch] = branchSummary
 
                             } catch (Exception e) {
-                                echo "⚠ ${branch} → Config file not found or branch missing"
                                 allSummaries[branch] = ["Config missing"]
                             }
                         }
                     }
 
-                    // Print clean final summary like requested
-                    echo "\n📊 Final Summary (All Branches):\n"
-
+                    // Build a single string for the final summary
+                    def finalSummary = "\n📊 Final Summary (All Branches):\n"
                     branches.each { branch ->
-                        echo "📂 ${branch} Results:\n"
+                        finalSummary += "\n📂 ${branch} Results:\n"
                         allSummaries[branch].each { val ->
-                            echo "\t• ${val}"
+                            finalSummary += "\t• ${val}\n"
                         }
-                        echo "\n"  // Add empty line between branches
                     }
+
+                    // Echo **once** for clean log output
+                    echo finalSummary
 
                     echo "✅ All environment branches processed in order: Development → QA → UAT → Production"
                 }
