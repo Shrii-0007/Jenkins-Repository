@@ -12,7 +12,6 @@ pipeline {
                     branches.each { branch ->
                         echo "🌿 Processing Branch: ${branch}"
 
-                        // Wrap all SCM/file operations in 'ansiColor' + 'sh script' with redirect to hide logs
                         dir("tmp_${branch}") {
                             try {
                                 // Quiet checkout of only JSON file
@@ -30,12 +29,17 @@ pipeline {
                                 def jsonText = readFile("appsettings.${branch}.json")
                                 def json = new groovy.json.JsonSlurper().parseText(jsonText)
 
-                                def appName = json.AppSettings?.AppName ?: "N/A"
-                                def version = json.AppSettings?.Version ?: "N/A"
-                                def environmentName = json.AppSettings?.Environment ?: "N/A"
-                                def extraVar = json.AppSettings?.ExtraVar ?: "N/A"
+                                // Iterate over AppSettings array
+                                json.AppSettings.each { setting ->
+                                    def appName = setting.AppName ?: "N/A"
+                                    def version = setting.Settings[0]?.Version ?: "N/A"
+                                    def extraVar = setting.Settings[0]?.ExtraVar ?: "N/A"
+                                    def sqlConnection = setting.Settings[0]?.Dev_MySql_Connection_String ?: "N/A"
+                                    def logging = setting.Settings[0]?.Logging ?: "N/A"
 
-                                echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, Env: ${environmentName}, ExtraVar: ${extraVar}"
+                                    echo "✅ ${branch} → AppName: ${appName}, Version: ${version}, ExtraVar: ${extraVar}, SQL: ${sqlConnection}, Logging: ${logging}"
+                                }
+
                             } catch (Exception e) {
                                 // Silent skip if file or checkout fails
                                 echo "⚠ ${branch} → Config file not found or branch missing"
