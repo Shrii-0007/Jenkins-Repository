@@ -11,32 +11,38 @@ pipeline {
                     branches.each { branch ->
                         dir("tmp_${branch}") {
                             try {
-                                // Checkout only required config file
-                                sh """
-                                  rm -rf .git > /dev/null 2>&1 || true
-                                  git init -q .
-                                  git remote add origin https://github.com/Shrii-0007/Jenkins-Repository.git
-                                  git fetch --depth=1 origin ${branch} > /dev/null 2>&1
-                                  git checkout FETCH_HEAD -- appsettings.${branch}.json > /dev/null 2>&1
-                                """
+                                // Silent checkout (no big git logs)
+                                checkout([
+                                    $class: 'GitSCM',
+                                    branches: [[name: "origin/${branch}"]],
+                                    userRemoteConfigs: [[
+                                        url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                                        credentialsId: 'Github-Credential'
+                                    ]],
+                                    extensions: [
+                                        [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]],
+                                        [$class: 'CloneOption', shallow: true, depth: 1, noTags: true, reference: '', timeout: 10, quiet: true]
+                                    ]
+                                ])
 
-                                // Read JSON
+                                // Read JSON file without printing it
                                 def json = new groovy.json.JsonSlurper().parseText(
                                     readFile("appsettings.${branch}.json")
                                 )
 
-                                // Extract only required fields
-                                def versions = json.AppSettings?.Version ?: []
-                                def envs = json.AppSettings?.Environment ?: []
-                                def extras = json.AppSettings?.ExtraVar ?: []
+                                def versions = json.AppSettings?.Version ?: "N/A"
+                                def envs     = json.AppSettings?.Environment ?: "N/A"
+                                def extras   = json.AppSettings?.ExtraVar ?: "N/A"
 
-                                // 🎯 Final clean output (only what you want)
-                                echo "📌 Branch: ${branch}"
-                                echo "   Versions   : ${versions}"
-                                echo "   Environments: ${envs}"
-                                echo "   Variables  : ${extras}"
-                                echo "----------------------------------------"
-
+                                // 🎯 Only clean block will be shown in Jenkins dashboard
+                                echo """
+----------------------------------------
+📌 Branch: ${branch}
+   Environment : ${envs}
+   Version     : ${versions}
+   Variables   : ${extras}
+----------------------------------------
+"""
                             } catch (Exception e) {
                                 echo "⚠ ${branch} → config not found"
                             }
