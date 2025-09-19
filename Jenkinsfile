@@ -1,88 +1,75 @@
-import groovy.json.JsonSlurper
-
 pipeline {
     agent any
-    options { timestamps() }
-
+    options {
+        timestamps()
+    }
+    environment {
+        DOTNET_ROOT = "/usr/share/dotnet" // optional
+    }
     stages {
-        stage('Process All Environment Branches') {
+        stage('Checkout SCM') {
+            steps {
+                echo "🌿 Checking out main branch"
+                checkout scm
+            }
+        }
+
+        stage('Process Environments & Generate Dashboard') {
             steps {
                 script {
-                    def branches = ['Development', 'QA', 'UAT', 'Production']
-                    def allSummaries = [:]
+                    // Define all environments
+                    def envBranches = ['Development', 'QA', 'UAT', 'Production']
+                    def results = [:]  // store HTML for each env
 
-                    branches.each { branch ->
-                        echo "🌿 Processing Branch: ${branch}"
+                    envBranches.each { envName ->
+                        dir("tmp_${envName}") {
+                            checkout([$class: 'GitSCM',
+                                branches: [[name: "origin/${envName}"]],
+                                doGenerateSubmoduleConfigurations: false,
+                                extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: "."]],
+                                userRemoteConfigs: [[
+                                    url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                                    credentialsId: 'Github-Credential'
+                                ]]
+                            ])
 
-                        dir("tmp_${branch}") {
-                            try {
-                                checkout([
-                                    $class: 'GitSCM',
-                                    branches: [[name: "origin/${branch}"]],
-                                    userRemoteConfigs: [[
-                                        url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
-                                        credentialsId: 'Github-Credential'
-                                    ]],
-                                    extensions: [[$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: "appsettings.${branch}.json"]]]]
-                                ])
-
-                                def jsonText = readFile("appsettings.${branch}.json")
-                                def json = new JsonSlurper().parseText(jsonText)
-
-                                def branchSummary = []
-
-                                json.AppSettings.each { app ->
-                                    app.Settings.each { s ->
-                                        def sqlConn = s.Dev_MySql_Connection_String ?: "N/A"
-                                        def logging = s.Logging ?: "N/A"
-                                        branchSummary << "SQL Connection: ${sqlConn}, Logging: ${logging}"
-                                    }
-                                }
-
-                                allSummaries[branch] = branchSummary
-
-                            } catch (Exception e) {
-                                echo "⚠ ${branch} → Config file missing"
-                                allSummaries[branch] = ["Config missing"]
-                            }
+                            // Read branch-specific config
+                            def content = readFile "appsettings.${envName}.json"
+                            // Example: extract SQL info (you can customize)
+                            def sqlInfo = content.readLines().findAll { it.contains("Server") || it.contains("Database") }.join("<br>")
+                            results[envName] = sqlInfo
                         }
                     }
 
-                    // **Generate HTML**
-                    def html = "<html><head><title>Branch Dashboard</title></head><body>"
-                    html += "<h1>📊 Branch Dashboard</h1>"
-
-                    branches.each { branch ->
-                        html += "<h2>${branch} Results:</h2><ul>"
-                        allSummaries[branch].each { val ->
-                            html += "<li>${val}</li>"
-                        }
-                        html += "</ul>"
+                    // Generate HTML
+                    def html = """
+                    <html>
+                    <head><title>Branch Dashboard</title></head>
+                    <body>
+                        <h1>📊 Branch Dashboard</h1>
+                    """
+                    envBranches.each { envName ->
+                        html += "<h2>${envName}</h2><p>${results[envName]}</p>"
                     }
-
-                    html += "</body></html>"
+                    html += """
+                    </body>
+                    </html>
+                    """
 
                     writeFile file: 'dashboard.html', text: html
-
-                    echo "✅ Dashboard generated successfully: dashboard.html"
                 }
             }
         }
     }
-
     post {
         success {
-            echo "✅ Pipeline completed successfully for all branches"
-
-            // Publish HTML
-            publishHTML([
-                reportDir: '.',          // dashboard.html is in workspace root
-                reportFiles: 'dashboard.html',
-                reportName: 'Branch Dashboard',
-                keepAll: true,
+            publishHTML(target: [
+                reportDir: '.', 
+                reportFiles: 'dashboard.html', 
+                reportName: 'Branch Dashboard', 
+                keepAll: true, 
                 alwaysLinkToLastBuild: true
             ])
         }
-        failure { echo "❌ Pipeline failed!" }
     }
 }
