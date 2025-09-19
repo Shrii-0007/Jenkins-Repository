@@ -1,7 +1,7 @@
 import json
 import os
 
-# Example structure: Replace with your logic to fetch JSONs per branch
+# List of branches to process
 branches = ['Development', 'QA', 'UAT', 'Production']
 all_env_data = {}
 
@@ -42,6 +42,7 @@ tr:hover { background-color: #ddd; }
 <h2>Environment Variables Dashboard</h2>
 """
 
+# Populate HTML table per branch
 for branch, vars_list in all_env_data.items():
     html_content += f"<h3>{branch} Environment</h3>\n<table>\n<tr><th>Variable</th><th>Value</th><th>Status</th></tr>\n"
     for var in vars_list:
@@ -54,7 +55,8 @@ html_content += "</body></html>"
 # Ensure dashboard directory exists
 os.makedirs("dashboard", exist_ok=True)
 
-with open("dashboard/env_dashboard.html", "w") as f:
+# Save to the exact file Jenkins HTML Publisher is expecting
+with open("dashboard/environment_dashboard.html", "w") as f:
     f.write(html_content)
 
 print("✅ HTML dashboard with colors created successfully!")
