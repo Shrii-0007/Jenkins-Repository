@@ -1,59 +1,60 @@
-import os
 import json
-from jinja2 import Template
+import os
 
-# HTML template for dashboard
-HTML_TEMPLATE = """
+# Example structure: Replace with your logic to fetch JSONs per branch
+branches = ['Development', 'QA', 'UAT', 'Production']
+all_env_data = {}
+
+# Fetch environment variables from each branch JSON
+for branch in branches:
+    try:
+        with open(f"tmp_{branch}/appsettings.{branch}.json", "r") as f:
+            data = json.load(f)
+            env_vars = []
+            for app in data.get("AppSettings", []):
+                for s in app.get("Settings", []):
+                    env_vars.append({
+                        "variable": s.get("Name", "N/A"),
+                        "value": s.get("Value", "N/A"),
+                        "status": "Active" if s.get("Value") else "Missing"
+                    })
+            all_env_data[branch] = env_vars
+    except FileNotFoundError:
+        all_env_data[branch] = [{"variable": "N/A", "value": "N/A", "status": "Missing"}]
+
+# HTML dashboard creation
+html_content = """
 <html>
 <head>
-    <title>Branch Dashboard</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #2c3e50; }
-        h2 { color: #16a085; }
-        table { border-collapse: collapse; width: 60%; margin-bottom: 30px; }
-        th, td { border: 1px solid #ddd; padding: 8px; }
-        th { background-color: #2c3e50; color: white; }
-    </style>
+<style>
+body { font-family: Arial, sans-serif; background-color: #f7f7f7; }
+h2 { color: #2E8B57; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+th { background-color: #4CAF50; color: white; padding: 8px; text-align: left; }
+td { border: 1px solid #ddd; padding: 8px; }
+tr:nth-child(even){ background-color: #f2f2f2; }
+tr:hover { background-color: #ddd; }
+.status-active { color: green; font-weight: bold; }
+.status-missing { color: red; font-weight: bold; }
+</style>
 </head>
 <body>
-<h1>Branch Environment Dashboard</h1>
-{% for branch, env_vars in data.items() %}
-    <h2>{{ branch }}</h2>
-    <table>
-        <tr><th>Key</th><th>Value</th></tr>
-        {% for k, v in env_vars.items() %}
-            <tr><td>{{ k }}</td><td>{{ v }}</td></tr>
-        {% endfor %}
-    </table>
-{% endfor %}
-</body>
-</html>
+<h2>Environment Variables Dashboard</h2>
 """
 
-def load_env(branch_file):
-    try:
-        with open(branch_file, "r") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"⚠️ Could not read {branch_file}: {e}")
-        return {}
+for branch, vars_list in all_env_data.items():
+    html_content += f"<h3>{branch} Environment</h3>\n<table>\n<tr><th>Variable</th><th>Value</th><th>Status</th></tr>\n"
+    for var in vars_list:
+        status_class = "status-active" if var["status"] == "Active" else "status-missing"
+        html_content += f"<tr><td>{var['variable']}</td><td>{var['value']}</td><td class='{status_class}'>{var['status']}</td></tr>\n"
+    html_content += "</table>\n"
 
-def main():
-    data = {}
-    for file in os.listdir("."):
-        if file.startswith("appsettings.") and file.endswith(".json"):
-            branch = file.replace("appsettings.", "").replace(".json", "")
-            data[branch] = load_env(file)
+html_content += "</body></html>"
 
-    template = Template(HTML_TEMPLATE)
-    html = template.render(data=data)
+# Ensure dashboard directory exists
+os.makedirs("dashboard", exist_ok=True)
 
-    with open("dashboard.html", "w") as f:
-        f.write(html)
+with open("dashboard/env_dashboard.html", "w") as f:
+    f.write(html_content)
 
-    print("✅ Dashboard generated: dashboard.html")
-
-if __name__ == "__main__":
-    main()
-
+print("✅ HTML dashboard with colors created successfully!")
