@@ -2,74 +2,88 @@ pipeline {
     agent any
     options {
         timestamps()
+        skipDefaultCheckout()
     }
     environment {
-        DOTNET_ROOT = "/usr/share/dotnet" // optional
+        DOTNET_ROOT = "/usr/share/dotnet" // adjust if needed
+        DASHBOARD_FILE = "dashboard.html"
     }
     stages {
-        stage('Checkout SCM') {
+        stage('Checkout') {
             steps {
-                echo "🌿 Checking out main branch"
-                checkout scm
+                echo "🌿 Checking out main branch..."
+                checkout([$class: 'GitSCM',
+                    branches: [[name: "refs/heads/main"]],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
+                        credentialsId: 'Github-Credential'
+                    ]]
+                ])
             }
         }
 
-        stage('Process Environments & Generate Dashboard') {
+        stage('Generate Dashboard') {
             steps {
                 script {
-                    // Define all environments
-                    def envBranches = ['Development', 'QA', 'UAT', 'Production']
-                    def results = [:]  // store HTML for each env
+                    // Define branch/environment info
+                    def envBranches = [
+                        [name: 'Development', file: 'appsettings.Development.json'],
+                        [name: 'QA',          file: 'appsettings.QA.json'],
+                        [name: 'UAT',         file: 'appsettings.UAT.json'],
+                        [name: 'Production',  file: 'appsettings.Production.json']
+                    ]
 
-                    envBranches.each { envName ->
-                        dir("tmp_${envName}") {
-                            checkout([$class: 'GitSCM',
-                                branches: [[name: "origin/${envName}"]],
-                                doGenerateSubmoduleConfigurations: false,
-                                extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: "."]],
-                                userRemoteConfigs: [[
-                                    url: 'https://github.com/Shrii-0007/Jenkins-Repository.git',
-                                    credentialsId: 'Github-Credential'
-                                ]]
-                            ])
-
-                            // Read branch-specific config
-                            def content = readFile "appsettings.${envName}.json"
-                            // Example: extract SQL info (you can customize)
-                            def sqlInfo = content.readLines().findAll { it.contains("Server") || it.contains("Database") }.join("<br>")
-                            results[envName] = sqlInfo
-                        }
-                    }
-
-                    // Generate HTML
-                    def html = """
+                    // Start HTML content
+                    def htmlContent = """
                     <html>
-                    <head><title>Branch Dashboard</title></head>
+                    <head>
+                        <title>Environment Dashboard</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 20px; }
+                            h2 { color: #2E86C1; }
+                            table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+                            th, td { border: 1px solid #ddd; padding: 8px; }
+                            th { background-color: #f2f2f2; }
+                        </style>
+                    </head>
                     <body>
-                        <h1>📊 Branch Dashboard</h1>
-                    """
-                    envBranches.each { envName ->
-                        html += "<h2>${envName}</h2><p>${results[envName]}</p>"
-                    }
-                    html += """
-                    </body>
-                    </html>
+                    <h1>Environment Dashboard - Main Branch</h1>
                     """
 
-                    writeFile file: 'dashboard.html', text: html
+                    // Loop through each environment and read SQL info
+                    envBranches.each { envInfo ->
+                        def fileContent = readFile(envInfo.file)
+                        htmlContent += "<h2>${envInfo.name}</h2><pre>${fileContent}</pre>"
+                    }
+
+                    htmlContent += "</body></html>"
+
+                    // Write HTML file
+                    writeFile file: DASHBOARD_FILE, text: htmlContent
                 }
             }
         }
+
+        stage('Publish Dashboard') {
+            steps {
+                publishHTML(target: [
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: ".",
+                    reportFiles: "dashboard.html",
+                    reportName: "Branch Dashboard"
+                ])
+            }
+        }
     }
+
     post {
         success {
-            publishHTML(target: [
-                reportDir: '.', 
-                reportFiles: 'dashboard.html', 
-                reportName: 'Branch Dashboard', 
-                keepAll: true, 
-                alwaysLinkToLastBuild: true
-            ])
+            echo "✅ Dashboard generated and published successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed."
         }
     }
 }
