@@ -1,51 +1,49 @@
 <html>
 <head>
-<style>
-body { font-family: Arial, sans-serif; background-color: #f7f7f7; }
-h1 { color: #2E8B57; }
-h2 { color: #1E90FF; }
-table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-th { background-color: #4CAF50; color: white; padding: 8px; text-align: left; }
-td { border: 1px solid #ddd; padding: 8px; }
-tr:nth-child(even){ background-color: #f2f2f2; }
-tr:hover { background-color: #ddd; }
-.status-active { color: green; font-weight: bold; }
-.status-missing { color: red; font-weight: bold; }
-</style>
+    <title>Jenkins Environment Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f7f7; }
+        h1 { color: #2E8B57; }
+        h2 { color: #2E8B57; margin-top: 30px; }
+        table { border-collapse: collapse; width: 90%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .source-header { font-weight: bold; color: #0000AA; }
+    </style>
 </head>
 <body>
-<h1>Jenkins Environment Dashboard</h1>
+    <h1>Jenkins Environment Dashboard</h1>
+    {% for branch, data in all_env_data.items() %}
+        <h2>{{ branch }} Environment</h2>
 
-{% for branch, data in all_env_data.items() %}
-    <h2>{{ branch }} Environment</h2>
+        {% if data.appsettings %}
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            {% for var in data.appsettings %}
+                <tr>
+                    <td class="source-header">AppSettings</td>
+                    <td>{{ var.variable }}</td>
+                    <td>{{ var.value }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
 
-    <!-- AppSettings Table -->
-    <h3>AppSettings</h3>
-    <table>
-        <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
-        {% for var in data.appsettings %}
-        <tr>
-            <td>AppSettings</td>
-            <td>{{ var.variable }}</td>
-            <td>{{ var.value }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+        {% if data.docker %}
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            {% for var in data.docker %}
+                <tr>
+                    <td class="source-header">Dockerfile</td>
+                    <td>{{ var.variable }}</td>
+                    <td>{{ var.value }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
 
-    <!-- Dockerfile ENV Table -->
-    <h3>Dockerfile ENV</h3>
-    <table>
-        <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
-        {% for var in data.docker %}
-        <tr>
-            <td>Dockerfile</td>
-            <td>{{ var.variable }}</td>
-            <td>{{ var.value }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-
-{% endfor %}
+    {% endfor %}
 </body>
 </html>
 

@@ -1,119 +1,135 @@
-
 <html>
 <head>
     <title>Jenkins Environment Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f7f7f7; }
-        h2 { color: #2E8B57; }
-        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-        th { background-color: #4CAF50; color: white; padding: 8px; text-align: left; }
-        td { border: 1px solid #ddd; padding: 8px; }
-        tr:nth-child(even){ background-color: #f2f2f2; }
-        tr:hover { background-color: #ddd; }
-        .status-active { color: green; font-weight: bold; }
-        .status-missing { color: red; font-weight: bold; }
+        body { font-family: Arial, sans-serif; background: #f7f7f7; }
+        h1 { color: #2E8B57; }
+        h2 { color: #2E8B57; margin-top: 30px; }
+        table { border-collapse: collapse; width: 90%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .source-header { font-weight: bold; color: #0000AA; }
     </style>
 </head>
 <body>
-<h1>Jenkins Environment Dashboard</h1>
+    <h1>Jenkins Environment Dashboard</h1>
+    
+        <h2>Development Environment</h2>
 
+        
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            
+                <tr>
+                    <td class="source-header">AppSettings</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                </tr>
+            
+        </table>
+        
 
-    <h2>Development Environment - AppSettings</h2>
-    <table>
-        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
         
-            <tr>
-                <td>N/A</td>
-                <td>N/A</td>
-                <td class="status-missing">Missing</td>
-            </tr>
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            
+                <tr>
+                    <td class="source-header">Dockerfile</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                </tr>
+            
+        </table>
         
-    </table>
 
-    <h2>Development Environment - Dockerfile ENV</h2>
-    <table>
-        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
-        
-            <tr>
-                <td>N/A</td>
-                <td>N/A</td>
-                <td class="status-missing">Missing</td>
-            </tr>
-        
-    </table>
+    
+        <h2>QA Environment</h2>
 
-    <h2>QA Environment - AppSettings</h2>
-    <table>
-        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
         
-            <tr>
-                <td>N/A</td>
-                <td>N/A</td>
-                <td class="status-missing">Missing</td>
-            </tr>
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            
+                <tr>
+                    <td class="source-header">AppSettings</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                </tr>
+            
+        </table>
         
-    </table>
 
-    <h2>QA Environment - Dockerfile ENV</h2>
-    <table>
-        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
         
-            <tr>
-                <td>N/A</td>
-                <td>N/A</td>
-                <td class="status-missing">Missing</td>
-            </tr>
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            
+                <tr>
+                    <td class="source-header">Dockerfile</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                </tr>
+            
+        </table>
         
-    </table>
 
-    <h2>UAT Environment - AppSettings</h2>
-    <table>
-        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
-        
-            <tr>
-                <td>N/A</td>
-                <td>N/A</td>
-                <td class="status-missing">Missing</td>
-            </tr>
-        
-    </table>
+    
+        <h2>UAT Environment</h2>
 
-    <h2>UAT Environment - Dockerfile ENV</h2>
-    <table>
-        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
         
-            <tr>
-                <td>N/A</td>
-                <td>N/A</td>
-                <td class="status-missing">Missing</td>
-            </tr>
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            
+                <tr>
+                    <td class="source-header">AppSettings</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                </tr>
+            
+        </table>
         
-    </table>
 
-    <h2>Production Environment - AppSettings</h2>
-    <table>
-        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
         
-            <tr>
-                <td>N/A</td>
-                <td>N/A</td>
-                <td class="status-missing">Missing</td>
-            </tr>
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            
+                <tr>
+                    <td class="source-header">Dockerfile</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                </tr>
+            
+        </table>
         
-    </table>
 
-    <h2>Production Environment - Dockerfile ENV</h2>
-    <table>
-        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
-        
-            <tr>
-                <td>N/A</td>
-                <td>N/A</td>
-                <td class="status-missing">Missing</td>
-            </tr>
-        
-    </table>
+    
+        <h2>Production Environment</h2>
 
+        
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            
+                <tr>
+                    <td class="source-header">AppSettings</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                </tr>
+            
+        </table>
+        
 
+        
+        <table>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            
+                <tr>
+                    <td class="source-header">Dockerfile</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                </tr>
+            
+        </table>
+        
+
+    
 </body>
 </html>
