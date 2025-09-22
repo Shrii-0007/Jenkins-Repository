@@ -2,48 +2,48 @@
 <head>
     <title>Jenkins Environment Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f7f7f7; }
-        h1 { color: #2E8B57; }
-        h2 { color: #2E8B57; margin-top: 30px; }
-        table { border-collapse: collapse; width: 90%; margin-bottom: 20px; }
+        body { font-family: Arial, sans-serif; }
+        table { border-collapse: collapse; width: 80%; margin-bottom: 20px; }
         th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background-color: #4CAF50; color: white; }
-        tr:nth-child(even) { background-color: #f2f2f2; }
-        .source-header { font-weight: bold; color: #0000AA; }
+        th { background-color: #f2f2f2; }
+        h2 { color: #2e6c80; }
     </style>
 </head>
 <body>
     <h1>Jenkins Environment Dashboard</h1>
-    {% for branch, data in all_env_data.items() %}
+
+    {% for branch in branches %}
         <h2>{{ branch }} Environment</h2>
 
-        {% if data.appsettings %}
+        <!-- AppSettings Table -->
         <table>
             <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
-            {% for var in data.appsettings %}
+            {% for item in all_data[branch]['appsettings'] %}
                 <tr>
-                    <td class="source-header">AppSettings</td>
-                    <td>{{ var.variable }}</td>
-                    <td>{{ var.value }}</td>
+                    <td>AppSettings</td>
+                    <td>SQL</td>
+                    <td>{{ item.sql }}</td>
+                </tr>
+                <tr>
+                    <td>AppSettings</td>
+                    <td>Logging</td>
+                    <td>{{ item.logging }}</td>
                 </tr>
             {% endfor %}
         </table>
-        {% endif %}
 
-        {% if data.docker %}
+        <!-- Docker ENV Table -->
         <table>
             <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
-            {% for var in data.docker %}
+            {% for env in all_data[branch]['docker_env'] %}
                 <tr>
-                    <td class="source-header">Dockerfile</td>
-                    <td>{{ var.variable }}</td>
-                    <td>{{ var.value }}</td>
+                    <td>Dockerfile</td>
+                    <td>{{ env.key }}</td>
+                    <td>{{ env.value }}</td>
                 </tr>
             {% endfor %}
         </table>
-        {% endif %}
-
     {% endfor %}
+
 </body>
 </html>
-
