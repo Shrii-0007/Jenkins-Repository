@@ -30,28 +30,34 @@ pipeline {
                                     extensions: [
                                         [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [
                                             [path: "appsettings.${branch}.json"], 
-                                            [path: "Dockerfile"]
+                                            [path: "Dockerfile.${branch}"]
                                         ]]
                                     ]
                                 ])
 
-                                // Read appsettings JSON
-                                def jsonText = readFile("appsettings.${branch}.json")
-                                def json = new JsonSlurper().parseText(jsonText)
                                 def branchSummary = []
 
-                                json.AppSettings.each { app ->
-                                    app.Settings.each { s ->
-                                        def sqlConn = s.Dev_MySql_Connection_String ?: "N/A"
-                                        def logging = s.Logging ?: "N/A"
-                                        branchSummary << [type: "AppSettings", variable: "SQL", value: sqlConn]
-                                        branchSummary << [type: "AppSettings", variable: "Logging", value: logging]
+                                // Read AppSettings JSON
+                                def appsettingsFile = "appsettings.${branch}.json"
+                                if (fileExists(appsettingsFile)) {
+                                    def jsonText = readFile(appsettingsFile)
+                                    def json = new JsonSlurper().parseText(jsonText)
+                                    json.AppSettings.each { app ->
+                                        app.Settings.each { s ->
+                                            def sqlConn = s.Dev_MySql_Connection_String ?: "N/A"
+                                            def logging = s.Logging ?: "N/A"
+                                            branchSummary << [type: "AppSettings", variable: "SQL", value: sqlConn]
+                                            branchSummary << [type: "AppSettings", variable: "Logging", value: logging]
+                                        }
                                     }
+                                } else {
+                                    branchSummary << [type:"Error", variable:"AppSettings missing", value:"File not found"]
                                 }
 
-                                // Read Dockerfile ENV variables
-                                if (fileExists("Dockerfile")) {
-                                    def dockerLines = readFile("Dockerfile").split("\n")
+                                // Read Dockerfile ENV variables (branch-specific Dockerfile)
+                                def dockerfileName = "Dockerfile.${branch}"
+                                if (fileExists(dockerfileName)) {
+                                    def dockerLines = readFile(dockerfileName).split("\n")
                                     dockerLines.each { line ->
                                         line = line.trim()
                                         if (line.startsWith("ENV") || line.startsWith("ARG")) {
@@ -64,12 +70,14 @@ pipeline {
                                             }
                                         }
                                     }
+                                } else {
+                                    branchSummary << [type:"Error", variable:"Dockerfile missing", value:"File not found"]
                                 }
 
                                 allSummaries[branch] = branchSummary
 
                             } catch (Exception e) {
-                                echo "⚠ ${branch} → Config file not found or branch missing"
+                                echo "⚠ ${branch} → Config file or Dockerfile not found"
                                 allSummaries[branch] = [[type:"Error", variable: "Config missing", value: "Config missing"]]
                             }
                         }
@@ -96,8 +104,17 @@ pipeline {
 
                     branches.each { branch ->
                         htmlContent += "<h2>${branch} Environment</h2>"
+
+                        // AppSettings table
                         htmlContent += "<table><tr><th>Source</th><th>Variable</th><th>Value</th></tr>"
-                        allSummaries[branch].each { item ->
+                        allSummaries[branch].findAll { it.type == "AppSettings" }.each { item ->
+                            htmlContent += "<tr><td>${item.type}</td><td>${item.variable}</td><td>${item.value}</td></tr>"
+                        }
+                        htmlContent += "</table>"
+
+                        // Dockerfile table
+                        htmlContent += "<table><tr><th>Source</th><th>Variable</th><th>Value</th></tr>"
+                        allSummaries[branch].findAll { it.type == "Dockerfile" }.each { item ->
                             htmlContent += "<tr><td>${item.type}</td><td>${item.variable}</td><td>${item.value}</td></tr>"
                         }
                         htmlContent += "</table>"
