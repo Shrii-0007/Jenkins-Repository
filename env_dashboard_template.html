@@ -2,7 +2,8 @@
 <head>
 <style>
 body { font-family: Arial, sans-serif; background-color: #f7f7f7; }
-h2 { color: #2E8B57; }
+h1 { color: #2E8B57; }
+h2 { color: #1E90FF; }
 table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
 th { background-color: #4CAF50; color: white; padding: 8px; text-align: left; }
 td { border: 1px solid #ddd; padding: 8px; }
@@ -13,41 +14,38 @@ tr:hover { background-color: #ddd; }
 </style>
 </head>
 <body>
-<h1>Environment Variables Dashboard</h1>
+<h1>Jenkins Environment Dashboard</h1>
 
-<h2>AppSettings Variables (Top)</h2>
-<table>
-<tr>
-<th>Branch</th><th>Variable</th><th>Value</th><th>Status</th>
-</tr>
 {% for branch, data in all_env_data.items() %}
-    {% for var in data.appsettings %}
+    <h2>{{ branch }} Environment</h2>
+
+    <!-- AppSettings Table -->
+    <h3>AppSettings</h3>
+    <table>
+        <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+        {% for var in data.appsettings %}
         <tr>
-            <td>{{ branch }}</td>
+            <td>AppSettings</td>
             <td>{{ var.variable }}</td>
             <td>{{ var.value }}</td>
-            <td class="status-{{ var.status|lower }}">{{ var.status }}</td>
         </tr>
-    {% endfor %}
-{% endfor %}
-</table>
+        {% endfor %}
+    </table>
 
-<h2>Dockerfile ENV Variables (Bottom)</h2>
-<table>
-<tr>
-<th>Branch</th><th>Variable</th><th>Value</th><th>Status</th>
-</tr>
-{% for branch, data in all_env_data.items() %}
-    {% for var in data.docker %}
+    <!-- Dockerfile ENV Table -->
+    <h3>Dockerfile ENV</h3>
+    <table>
+        <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+        {% for var in data.docker %}
         <tr>
-            <td>{{ branch }}</td>
+            <td>Dockerfile</td>
             <td>{{ var.variable }}</td>
             <td>{{ var.value }}</td>
-            <td class="status-{{ var.status|lower }}">{{ var.status }}</td>
         </tr>
-    {% endfor %}
+        {% endfor %}
+    </table>
+
 {% endfor %}
-</table>
 </body>
 </html>
 

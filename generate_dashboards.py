@@ -24,13 +24,17 @@ def parse_dockerfile(path):
                 parts = re.split(r'\s+', rest)
                 for p in parts:
                     if '=' in p:
-                        key, val = p.split('=', 1)
-                        envs.append({"variable": key, "value": val, "status": "Active" if val else "Missing"})
+                        key, val = p.split('=',1)
+                        envs.append({
+                            "variable": key,
+                            "value": val,
+                            "status": "Active" if val else "Missing"
+                        })
     return envs if envs else [{"variable":"N/A","value":"N/A","status":"Missing"}]
 
 # Process each branch
 for branch in branches:
-    # Parse AppSettings JSON
+    # appsettings JSON
     app_path = f"tmp_{branch}/appsettings.{branch}.json"
     try:
         with open(app_path, "r") as f:
@@ -45,29 +49,78 @@ for branch in branches:
                     })
     except FileNotFoundError:
         app_vars = [{"variable":"N/A","value":"N/A","status":"Missing"}]
-
-    # Parse Dockerfile
-    docker_path = f"tmp_{branch}/Dockerfile"
+    
+    # Dockerfile env (branch-specific)
+    docker_path = f"tmp_{branch}/Dockerfile.{branch}"
     docker_vars = parse_dockerfile(docker_path)
-
-    # Store for Jinja template
+    
+    # Store combined
     all_env_data[branch] = {
         "appsettings": app_vars,
         "docker": docker_vars
     }
 
-# Render HTML using Jinja2
-env = Environment(loader=FileSystemLoader('.'))
-template = env.get_template('env_dashboard_template.html')
-
-rendered = template.render(all_env_data=all_env_data)
-
 # Ensure dashboard directory exists
 os.makedirs("dashboard", exist_ok=True)
 
-# Save HTML
-with open("dashboard/environment_dashboard.html", "w") as f:
+# Jinja2 template setup
+env = Environment(loader=FileSystemLoader('.'), autoescape=True)
+template_content = """
+<html>
+<head>
+    <title>Jenkins Environment Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f7f7f7; }
+        h2 { color: #2E8B57; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th { background-color: #4CAF50; color: white; padding: 8px; text-align: left; }
+        td { border: 1px solid #ddd; padding: 8px; }
+        tr:nth-child(even){ background-color: #f2f2f2; }
+        tr:hover { background-color: #ddd; }
+        .status-active { color: green; font-weight: bold; }
+        .status-missing { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+<h1>Jenkins Environment Dashboard</h1>
+
+{% for branch, data in all_env_data.items() %}
+    <h2>{{ branch }} Environment - AppSettings</h2>
+    <table>
+        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
+        {% for var in data.appsettings %}
+            <tr>
+                <td>{{ var.variable }}</td>
+                <td>{{ var.value }}</td>
+                <td class="{{ 'status-active' if var.status=='Active' else 'status-missing' }}">{{ var.status }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+
+    <h2>{{ branch }} Environment - Dockerfile ENV</h2>
+    <table>
+        <tr><th>Variable</th><th>Value</th><th>Status</th></tr>
+        {% for var in data.docker %}
+            <tr>
+                <td>{{ var.variable }}</td>
+                <td>{{ var.value }}</td>
+                <td class="{{ 'status-active' if var.status=='Active' else 'status-missing' }}">{{ var.status }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endfor %}
+
+</body>
+</html>
+"""
+
+template = env.from_string(template_content)
+rendered = template.render(all_env_data=all_env_data)
+
+# Save the HTML dashboard
+out_file = os.path.join("dashboard", "environment_dashboard.html")
+with open(out_file, "w") as f:
     f.write(rendered)
 
-print("✅ HTML dashboard created successfully!")
+print("✅ HTML dashboard generated with branch-wise AppSettings and Dockerfile ENV!")
 
