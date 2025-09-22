@@ -1,0 +1,20 @@
+# Base image
+FROM python:3.11-slim
+
+# Branch-specific environment variables
+ENV DB_HOST=dev-db.local
+ENV DB_USER=dev_user
+ENV DB_PASS=dev_pass123
+ENV API_KEY=dev_api_001
+
+# Working directory
+WORKDIR /app
+
+# Copy your app
+COPY . /app
+
+# Install requirements
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Default command
+CMD ["python3", "generate_dashboards.py"]
