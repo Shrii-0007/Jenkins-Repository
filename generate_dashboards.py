@@ -3,19 +3,15 @@ import os
 import re
 from jinja2 import Environment, FileSystemLoader
 
-# Branch list
+# List of branches to process
 branches = ['Development', 'QA', 'UAT', 'Production']
 all_env_data = {}
 
-# Root workspace
-ROOT = os.getcwd()
-TEMPLATE_DIR = os.path.join(ROOT, 'dashboard', 'templates')
-OUT_DIR = os.path.join(ROOT, 'dashboard')
-
-# Parse Dockerfile ENV/ARG variables
+# Function to parse Dockerfile ENV/ARG variables
 def parse_dockerfile(path):
     if not os.path.exists(path):
         return [{"variable":"N/A","value":"N/A","status":"Missing"}]
+    
     envs = []
     with open(path, 'r') as f:
         for line in f:
@@ -24,7 +20,8 @@ def parse_dockerfile(path):
                 continue
             m = re.match(r'^(ENV|ARG)\s+(.*)$', line)
             if m:
-                parts = re.split(r'\s+', m.group(2))
+                rest = m.group(2)
+                parts = re.split(r'\s+', rest)
                 for p in parts:
                     if '=' in p:
                         key, val = p.split('=', 1)
@@ -33,37 +30,44 @@ def parse_dockerfile(path):
 
 # Process each branch
 for branch in branches:
-    # AppSettings JSON
-    app_path = os.path.join(ROOT, f"tmp_{branch}", f"appsettings.{branch}.json")
+    # Parse AppSettings JSON
+    app_path = f"tmp_{branch}/appsettings.{branch}.json"
     try:
         with open(app_path, "r") as f:
             data = json.load(f)
-            app_vars = [{"variable": s.get("Name", "N/A"),
-                         "value": s.get("Value", "N/A"),
-                         "status": "Active" if s.get("Value") else "Missing"}
-                        for app in data.get("AppSettings", []) for s in app.get("Settings", [])]
-            if not app_vars:
-                app_vars = [{"variable":"N/A","value":"N/A","status":"Missing"}]
+            app_vars = []
+            for app in data.get("AppSettings", []):
+                for s in app.get("Settings", []):
+                    app_vars.append({
+                        "variable": s.get("Name", "N/A"),
+                        "value": s.get("Value", "N/A"),
+                        "status": "Active" if s.get("Value") else "Missing"
+                    })
     except FileNotFoundError:
         app_vars = [{"variable":"N/A","value":"N/A","status":"Missing"}]
 
-    # Dockerfile
-    docker_path = os.path.join(ROOT, f"tmp_{branch}", "Dockerfile")
+    # Parse Dockerfile
+    docker_path = f"tmp_{branch}/Dockerfile"
     docker_vars = parse_dockerfile(docker_path)
 
-    # Combine
-    all_env_data[branch] = {"appsettings": app_vars, "docker": docker_vars}
+    # Store for Jinja template
+    all_env_data[branch] = {
+        "appsettings": app_vars,
+        "docker": docker_vars
+    }
 
-# Render Jinja2 template
-env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), autoescape=True)
+# Render HTML using Jinja2
+env = Environment(loader=FileSystemLoader('.'))
 template = env.get_template('env_dashboard_template.html')
+
 rendered = template.render(all_env_data=all_env_data)
 
-# Save dashboard
-os.makedirs(OUT_DIR, exist_ok=True)
-out_file = os.path.join(OUT_DIR, 'environment_dashboard.html')
-with open(out_file, 'w') as f:
+# Ensure dashboard directory exists
+os.makedirs("dashboard", exist_ok=True)
+
+# Save HTML
+with open("dashboard/environment_dashboard.html", "w") as f:
     f.write(rendered)
 
-print("✅ HTML dashboard with appsettings + Dockerfile ENV created successfully!")
+print("✅ HTML dashboard created successfully!")
 
