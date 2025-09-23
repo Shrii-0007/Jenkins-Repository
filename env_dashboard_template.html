@@ -1,49 +1,67 @@
+<!DOCTYPE html>
 <html>
 <head>
     <title>Jenkins Environment Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        table { border-collapse: collapse; width: 80%; margin-bottom: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        h2 { color: #2e6c80; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f8f9fa;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h2 {
+            color: #007BFF; /* Blue for environment name */
+            margin-top: 30px;
+            border-bottom: 2px solid #007BFF;
+            padding-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f1f1f1;
+            font-weight: bold;
+        }
+        td.variable {
+            color: #e74c3c; /* Light Red for variables */
+            font-weight: bold;
+        }
+        td.value {
+            color: #000000; /* Black for values */
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
     </style>
 </head>
 <body>
     <h1>Jenkins Environment Dashboard</h1>
 
-    {% for branch in branches %}
-        <h2>{{ branch }} Environment</h2>
-
-        <!-- AppSettings Table -->
+    {% for env, variables in dashboard.items() %}
+        <h2>{{ env }} Environment</h2>
         <table>
-            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
-            {% for item in all_data[branch]['appsettings'] %}
-                <tr>
-                    <td>AppSettings</td>
-                    <td>SQL</td>
-                    <td>{{ item.sql }}</td>
-                </tr>
-                <tr>
-                    <td>AppSettings</td>
-                    <td>Logging</td>
-                    <td>{{ item.logging }}</td>
-                </tr>
-            {% endfor %}
-        </table>
-
-        <!-- Docker ENV Table -->
-        <table>
-            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
-            {% for env in all_data[branch]['docker_env'] %}
-                <tr>
-                    <td>Dockerfile</td>
-                    <td>{{ env.key }}</td>
-                    <td>{{ env.value }}</td>
-                </tr>
+            <tr>
+                <th>Variable</th>
+                <th>Value</th>
+            </tr>
+            {% for var, val in variables.items() %}
+            <tr>
+                <td class="variable">{{ var }}</td>
+                <td class="value">{{ val }}</td>
+            </tr>
             {% endfor %}
         </table>
     {% endfor %}
-
 </body>
 </html>
