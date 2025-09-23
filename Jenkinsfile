@@ -34,8 +34,8 @@ pipeline {
                                     extensions: [
                                         [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [
                                             [path: "appsettings.${branch}.json"], 
-                                            [path: "Dockerfile.${branch}"],
-                                            [path: "env_dashboard_template.html"]
+                                            [path: "Dockerfile.${branch}"]
+                                            // 👆 removed env_dashboard_template.html
                                         ]]
                                     ]
                                 ])
@@ -82,9 +82,8 @@ pipeline {
                         }
                     }
 
-                    // Load Template
-                    def templateFile = "tmp_Development/env_dashboard_template.html"
-                    def templateContent = readFile(templateFile)
+                    // ✅ Load Template from Jenkinsfile repo
+                    def templateContent = readFile('env_dashboard_template.html')
 
                     // Build Environment Sections
                     def envSections = ""
