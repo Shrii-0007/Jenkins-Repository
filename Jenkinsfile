@@ -83,7 +83,7 @@ pipeline {
                         }
                     }
 
-                    // Build HTML content with coloured variables and values
+                    // Build HTML content
                     def htmlContent = """
                         <html>
                         <head>
@@ -97,8 +97,6 @@ pipeline {
                                 th { background-color: #4CAF50; color: white; font-weight: bold; }
                                 tr:nth-child(even) { background-color: #f9f9f9; }
                                 tr:hover { background-color: #f1f1f1; }
-                                td.variable { color: #ff6666; font-weight: bold; }  /* Light Red */
-                                td.value { color: #000000; }                        /* Black */
                             </style>
                         </head>
                         <body>
@@ -113,7 +111,7 @@ pipeline {
                         if (appSettings) {
                             htmlContent += "<table><tr><th>Variable</th><th>Value</th></tr>"
                             appSettings.each { item ->
-                                htmlContent += "<tr><td class='variable'>${item.variable}</td><td class='value'>${item.value}</td></tr>"
+                                htmlContent += "<tr><td>${item.variable}</td><td>${item.value}</td></tr>"
                             }
                             htmlContent += "</table>"
                         }
@@ -123,7 +121,7 @@ pipeline {
                         if (dockerVars) {
                             htmlContent += "<table><tr><th>Variable</th><th>Value</th></tr>"
                             dockerVars.each { item ->
-                                htmlContent += "<tr><td class='variable'>${item.variable}</td><td class='value'>${item.value}</td></tr>"
+                                htmlContent += "<tr><td>${item.variable}</td><td>${item.value}</td></tr>"
                             }
                             htmlContent += "</table>"
                         }
@@ -134,7 +132,7 @@ pipeline {
                     // Save HTML file in dashboard folder
                     writeFile file: 'dashboard/environment_dashboard.html', text: htmlContent
 
-                    echo "✅ HTML dashboard created with coloured AppSettings + Dockerfile ENV"
+                    echo "✅ HTML dashboard created with AppSettings + Dockerfile ENV"
                 }
             }
         }
