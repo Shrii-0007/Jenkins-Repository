@@ -9,9 +9,14 @@ pipeline {
             steps {
                 script {
                     def branches = ['Development', 'QA', 'UAT', 'Production']
-                    def allSummaries = [:]  // Store summary of all branches
+                    def envColors = [
+                        Development: "#e3f2fd",   // Light Blue
+                        QA: "#fff3e0",            // Light Orange
+                        UAT: "#f3e5f5",           // Light Purple
+                        Production: "#e8f5e9"     // Light Green
+                    ]
+                    def allSummaries = [:]
 
-                    // Create folder for dashboard
                     sh 'mkdir -p dashboard'
 
                     branches.each { branch ->
@@ -19,7 +24,6 @@ pipeline {
 
                         dir("tmp_${branch}") {
                             try {
-                                // Checkout branch
                                 checkout([
                                     $class: 'GitSCM',
                                     branches: [[name: "origin/${branch}"]],
@@ -30,31 +34,28 @@ pipeline {
                                     extensions: [
                                         [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [
                                             [path: "appsettings.${branch}.json"], 
-                                            [path: "Dockerfile.${branch}"]
+                                            [path: "Dockerfile.${branch}"],
+                                            [path: "env_dashboard_template.html"]
                                         ]]
                                     ]
                                 ])
 
                                 def branchSummary = []
 
-                                // Read AppSettings JSON
+                                // AppSettings JSON
                                 def appsettingsFile = "appsettings.${branch}.json"
                                 if (fileExists(appsettingsFile)) {
                                     def jsonText = readFile(appsettingsFile)
                                     def json = new JsonSlurper().parseText(jsonText)
                                     json.AppSettings.each { app ->
                                         app.Settings.each { s ->
-                                            def sqlConn = s.Dev_MySql_Connection_String ?: "N/A"
-                                            def logging = s.Logging ?: "N/A"
-                                            branchSummary << [group: "AppSettings", variable: "SQL", value: sqlConn]
-                                            branchSummary << [group: "AppSettings", variable: "Logging", value: logging]
+                                            branchSummary << [variable: "SQL", value: (s.Dev_MySql_Connection_String ?: "N/A")]
+                                            branchSummary << [variable: "Logging", value: (s.Logging ?: "N/A")]
                                         }
                                     }
-                                } else {
-                                    branchSummary << [group:"AppSettings", variable:"Missing", value:"File not found"]
                                 }
 
-                                // Read Dockerfile ENV variables
+                                // Dockerfile.<branch>
                                 def dockerfileName = "Dockerfile.${branch}"
                                 if (fileExists(dockerfileName)) {
                                     def dockerLines = readFile(dockerfileName).split("\n")
@@ -65,74 +66,51 @@ pipeline {
                                             parts.each { p ->
                                                 if (p.contains("=")) {
                                                     def kv = p.split("=", 2)
-                                                    branchSummary << [group: "Dockerfile", variable: kv[0], value: kv[1]]
+                                                    branchSummary << [variable: kv[0], value: kv[1]]
                                                 }
                                             }
                                         }
                                     }
-                                } else {
-                                    branchSummary << [group:"Dockerfile", variable:"Missing", value:"File not found"]
                                 }
 
                                 allSummaries[branch] = branchSummary
 
                             } catch (Exception e) {
                                 echo "⚠ ${branch} → Config or Dockerfile not found"
-                                allSummaries[branch] = [[group:"Error", variable:"Config missing", value:"Config missing"]]
+                                allSummaries[branch] = [[variable:"Missing", value:"File not found"]]
                             }
                         }
                     }
 
-                    // Build HTML content
-                    def htmlContent = """
-                        <html>
-                        <head>
-                            <title>Environment Dashboard</title>
-                            <style>
-                                body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 20px; }
-                                h1 { text-align: center; color: #333; margin-bottom: 30px; }
-                                h2 { color: #2E8B57; border-bottom: 2px solid #ccc; padding-bottom: 5px; margin-top: 40px; }
-                                table { border-collapse: collapse; width: 90%; margin: 20px auto; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
-                                th, td { border: 1px solid #ddd; padding: 12px 15px; text-align: left; }
-                                th { background-color: #4CAF50; color: white; font-weight: bold; }
-                                tr:nth-child(even) { background-color: #f9f9f9; }
-                                tr:hover { background-color: #f1f1f1; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>🌍 Jenkins Environment Dashboard</h1>
-                    """
+                    // Load Template
+                    def templateFile = "tmp_Development/env_dashboard_template.html"
+                    def templateContent = readFile(templateFile)
 
+                    // Build Environment Sections
+                    def envSections = ""
                     branches.each { branch ->
-                        htmlContent += "<h2>${branch} Environment</h2>"
-
-                        // AppSettings table
-                        def appSettings = allSummaries[branch].findAll { it.group == "AppSettings" }
-                        if (appSettings) {
-                            htmlContent += "<table><tr><th>Variable</th><th>Value</th></tr>"
-                            appSettings.each { item ->
-                                htmlContent += "<tr><td>${item.variable}</td><td>${item.value}</td></tr>"
-                            }
-                            htmlContent += "</table>"
+                        def color = envColors[branch] ?: "#ffffff"
+                        def tableRows = ""
+                        allSummaries[branch].each { item ->
+                            tableRows += "<tr><td class='variable'>${item.variable}</td><td class='value'>${item.value}</td></tr>"
                         }
-
-                        // Dockerfile table
-                        def dockerVars = allSummaries[branch].findAll { it.group == "Dockerfile" }
-                        if (dockerVars) {
-                            htmlContent += "<table><tr><th>Variable</th><th>Value</th></tr>"
-                            dockerVars.each { item ->
-                                htmlContent += "<tr><td>${item.variable}</td><td>${item.value}</td></tr>"
-                            }
-                            htmlContent += "</table>"
-                        }
+                        envSections += """
+                            <div class='env-section' style='background-color:${color};'>
+                                <h2>${branch} Environment</h2>
+                                <table>
+                                    <tr><th>Variable</th><th>Value</th></tr>
+                                    ${tableRows}
+                                </table>
+                            </div>
+                        """
                     }
 
-                    htmlContent += "</body></html>"
+                    // Replace placeholder in template
+                    def finalHtml = templateContent.replace("{{ENV_SECTIONS}}", envSections)
 
-                    // Save HTML file in dashboard folder
-                    writeFile file: 'dashboard/environment_dashboard.html', text: htmlContent
-
-                    echo "✅ HTML dashboard created with AppSettings + Dockerfile ENV"
+                    // Save HTML
+                    writeFile file: 'dashboard/environment_dashboard.html', text: finalHtml
+                    echo "✅ Dashboard created from template"
                 }
             }
         }
@@ -152,7 +130,7 @@ pipeline {
     }
 
     post {
-        success { echo "✅ Pipeline completed successfully for all branches" }
+        success { echo "✅ Pipeline completed successfully" }
         failure { echo "❌ Pipeline failed!" }
     }
 }
