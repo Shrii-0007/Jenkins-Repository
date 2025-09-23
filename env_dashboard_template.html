@@ -1,117 +1,51 @@
-<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
     <title>Jenkins Environment Dashboard</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f9;
-            margin: 20px;
-        }
-
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-
-        .env-section {
-            padding: 20px;
-            margin-bottom: 30px;
-            border-radius: 10px;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-        }
-
-        h2 {
-            margin-top: 0;
-            padding: 10px;
-            border-radius: 6px;
-            color: #2E8B57;
-            border-bottom: 2px solid #ccc;
-        }
-
-        table {
-            border-collapse: collapse;
-            width: 90%;
-            margin: 20px auto;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px 15px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #4CAF50;
-            color: white;
-            font-weight: bold;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        tr:hover {
-            background-color: #f1f1f1;
-        }
-
-        td.variable {
-            color: #ff6666; /* Light Red for variable */
-            font-weight: bold;
-        }
-
-        td.value {
-            color: #000000; /* Black for value */
-        }
+        body { font-family: Arial, sans-serif; }
+        table { border-collapse: collapse; width: 80%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ccc; padding: 12px 20px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        td.variable { width: 40%; }
+        td.value { width: 60%; }
+        h2 { color: #2e6c80; }
     </style>
 </head>
 <body>
-    <h1>🌍 Jenkins Environment Dashboard</h1>
+    <h1>Jenkins Environment Dashboard</h1>
 
-    <!-- Example Environment Section -->
-    <div class="env-section" style="background-color:#e3f2fd;">
-        <h2>Development Environment</h2>
+    {% for branch in branches %}
+        <h2>{{ branch }} Environment</h2>
+
+        <!-- AppSettings Table -->
         <table>
-            <tr>
-                <th>Variable</th>
-                <th>Value</th>
-            </tr>
-            <tr>
-                <td class="variable">SQL</td>
-                <td class="value">Server=localhost;Database=DevDb;User Id=root;Password=;</td>
-            </tr>
-            <tr>
-                <td class="variable">Logging</td>
-                <td class="value">Information</td>
-            </tr>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            {% for item in all_data[branch]['appsettings'] %}
+                <tr>
+                    <td>AppSettings</td>
+                    <td>SQL</td>
+                    <td>{{ item.sql }}</td>
+                </tr>
+                <tr>
+                    <td>AppSettings</td>
+                    <td>Logging</td>
+                    <td>{{ item.logging }}</td>
+                </tr>
+            {% endfor %}
         </table>
-    </div>
 
-    <div class="env-section" style="background-color:#fff3e0;">
-        <h2>QA Environment</h2>
+        <!-- Docker ENV Table -->
         <table>
-            <tr>
-                <th>Variable</th>
-                <th>Value</th>
-            </tr>
-            <tr>
-                <td class="variable">SQL</td>
-                <td class="value">Server=qa-server;Database=QADb;User Id=root;Password=;</td>
-            </tr>
-            <tr>
-                <td class="variable">Logging</td>
-                <td class="value">Warning</td>
-            </tr>
+            <tr><th>Source</th><th>Variable</th><th>Value</th></tr>
+            {% for env in all_data[branch]['docker_env'] %}
+                <tr>
+                    <td>Dockerfile</td>
+                    <td>{{ env.key }}</td>
+                    <td>{{ env.value }}</td>
+                </tr>
+            {% endfor %}
         </table>
-    </div>
-
-    <!-- Repeat similar divs for UAT and Production -->
+    {% endfor %}
 
 </body>
 </html>
