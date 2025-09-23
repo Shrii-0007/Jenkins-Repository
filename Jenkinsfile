@@ -46,15 +46,15 @@ pipeline {
                                         app.Settings.each { s ->
                                             def sqlConn = s.Dev_MySql_Connection_String ?: "N/A"
                                             def logging = s.Logging ?: "N/A"
-                                            branchSummary << [type: "AppSettings", variable: "SQL", value: sqlConn]
-                                            branchSummary << [type: "AppSettings", variable: "Logging", value: logging]
+                                            branchSummary << [group: "AppSettings", variable: "SQL", value: sqlConn]
+                                            branchSummary << [group: "AppSettings", variable: "Logging", value: logging]
                                         }
                                     }
                                 } else {
-                                    branchSummary << [type:"Error", variable:"AppSettings missing", value:"File not found"]
+                                    branchSummary << [group:"AppSettings", variable:"Missing", value:"File not found"]
                                 }
 
-                                // Read Dockerfile ENV variables (branch-specific Dockerfile)
+                                // Read Dockerfile ENV variables
                                 def dockerfileName = "Dockerfile.${branch}"
                                 if (fileExists(dockerfileName)) {
                                     def dockerLines = readFile(dockerfileName).split("\n")
@@ -65,20 +65,20 @@ pipeline {
                                             parts.each { p ->
                                                 if (p.contains("=")) {
                                                     def kv = p.split("=", 2)
-                                                    branchSummary << [type: "Dockerfile", variable: kv[0], value: kv[1]]
+                                                    branchSummary << [group: "Dockerfile", variable: kv[0], value: kv[1]]
                                                 }
                                             }
                                         }
                                     }
                                 } else {
-                                    branchSummary << [type:"Error", variable:"Dockerfile missing", value:"File not found"]
+                                    branchSummary << [group:"Dockerfile", variable:"Missing", value:"File not found"]
                                 }
 
                                 allSummaries[branch] = branchSummary
 
                             } catch (Exception e) {
-                                echo "⚠ ${branch} → Config file or Dockerfile not found"
-                                allSummaries[branch] = [[type:"Error", variable: "Config missing", value: "Config missing"]]
+                                echo "⚠ ${branch} → Config or Dockerfile not found"
+                                allSummaries[branch] = [[group:"Error", variable:"Config missing", value:"Config missing"]]
                             }
                         }
                     }
@@ -89,35 +89,42 @@ pipeline {
                         <head>
                             <title>Environment Dashboard</title>
                             <style>
-                                body { font-family: Arial, sans-serif; background-color: #f7f7f7; }
-                                table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-                                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                                th { background-color: #4CAF50; color: white; }
-                                tr:nth-child(even){ background-color: #f2f2f2; }
-                                tr:hover { background-color: #ddd; }
-                                h2 { color: #2E8B57; }
+                                body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 20px; }
+                                h1 { text-align: center; color: #333; margin-bottom: 30px; }
+                                h2 { color: #2E8B57; border-bottom: 2px solid #ccc; padding-bottom: 5px; margin-top: 40px; }
+                                table { border-collapse: collapse; width: 90%; margin: 20px auto; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+                                th, td { border: 1px solid #ddd; padding: 12px 15px; text-align: left; }
+                                th { background-color: #4CAF50; color: white; font-weight: bold; }
+                                tr:nth-child(even) { background-color: #f9f9f9; }
+                                tr:hover { background-color: #f1f1f1; }
                             </style>
                         </head>
                         <body>
-                            <h1>Jenkins Environment Dashboard</h1>
+                            <h1>🌍 Jenkins Environment Dashboard</h1>
                     """
 
                     branches.each { branch ->
                         htmlContent += "<h2>${branch} Environment</h2>"
 
                         // AppSettings table
-                        htmlContent += "<table><tr><th>Source</th><th>Variable</th><th>Value</th></tr>"
-                        allSummaries[branch].findAll { it.type == "AppSettings" }.each { item ->
-                            htmlContent += "<tr><td>${item.type}</td><td>${item.variable}</td><td>${item.value}</td></tr>"
+                        def appSettings = allSummaries[branch].findAll { it.group == "AppSettings" }
+                        if (appSettings) {
+                            htmlContent += "<table><tr><th>Variable</th><th>Value</th></tr>"
+                            appSettings.each { item ->
+                                htmlContent += "<tr><td>${item.variable}</td><td>${item.value}</td></tr>"
+                            }
+                            htmlContent += "</table>"
                         }
-                        htmlContent += "</table>"
 
                         // Dockerfile table
-                        htmlContent += "<table><tr><th>Source</th><th>Variable</th><th>Value</th></tr>"
-                        allSummaries[branch].findAll { it.type == "Dockerfile" }.each { item ->
-                            htmlContent += "<tr><td>${item.type}</td><td>${item.variable}</td><td>${item.value}</td></tr>"
+                        def dockerVars = allSummaries[branch].findAll { it.group == "Dockerfile" }
+                        if (dockerVars) {
+                            htmlContent += "<table><tr><th>Variable</th><th>Value</th></tr>"
+                            dockerVars.each { item ->
+                                htmlContent += "<tr><td>${item.variable}</td><td>${item.value}</td></tr>"
+                            }
+                            htmlContent += "</table>"
                         }
-                        htmlContent += "</table>"
                     }
 
                     htmlContent += "</body></html>"
